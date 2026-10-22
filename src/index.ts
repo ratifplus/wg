@@ -1,4 +1,4 @@
-import { EMOJI, escapeHtml, formatDate, reminderEmail } from "./email";
+import { escapeHtml, formatDate, reminderEmail } from "./email";
 import {
   CHORES,
   type ChoreId,
@@ -423,11 +423,17 @@ async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Pro
   return json({ error: "Not found." }, 404);
 }
 
+// Same artwork as ALL_CLEAR in public/icons.js.
+const ALL_CLEAR = `<svg viewBox="0 0 160 120" width="160" height="120" aria-hidden="true" class="illo">
+<circle cx="80" cy="60" r="38" fill="var(--blue-100)"/><circle cx="80" cy="60" r="26" fill="var(--blue)"/>
+<path d="M68 60.5l8 8 16-17" fill="none" stroke="var(--surface)" stroke-width="6" stroke-linecap="round" stroke-linejoin="round"/>
+<path d="M28 34l8 5M132 34l-8 5M24 78h10M126 78h10M80 6v10" stroke="var(--blue-300)" stroke-width="4" stroke-linecap="round"/></svg>`;
+
 function page(title: string, body: string, status = 200): Response {
   return new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
 <title>${escapeHtml(title)}</title><link rel="icon" href="/icon.svg" type="image/svg+xml">
-<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="/styles.css"></head>
 <body><main class="shell narrow"><div class="card confirm">${body}</div></main></body></html>`,
     { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } },
@@ -455,15 +461,15 @@ async function handleDone(request: Request, env: Env): Promise<Response> {
     await markDone(env.DB, id);
     return page(
       "Done",
-      `<div class="tick" aria-hidden="true">🎉</div><h1>Legend, thank you!</h1><p class="muted"><strong>${escapeHtml(title)}</strong> is marked as done. Everyone in the WG can see it now.</p><a class="button" href="/">See the schedule</a>`,
+      `${ALL_CLEAR}<h1>Thank you!</h1><p class="muted"><strong>${escapeHtml(title)}</strong> is marked as done. Everyone in the WG can see it now.</p><a class="button" href="/">See the schedule</a>`,
     );
   }
 
   return page(
     title,
-    `<div class="tick" aria-hidden="true">${EMOJI[task.chore]}</div><h1>${escapeHtml(title)}</h1><p class="muted">Due ${escapeHtml(formatDate(task.due))}. All finished?</p>
+    `<h1>${escapeHtml(title)}</h1><p class="muted">Due ${escapeHtml(formatDate(task.due))}. All finished?</p>
 <form method="post" action="/done"><input type="hidden" name="t" value="${escapeHtml(id)}"><input type="hidden" name="s" value="${escapeHtml(signature)}">
-<button class="button big" type="submit">✓ Yes, I've done it</button></form>`,
+<button class="button big" type="submit">Yes, I've done it</button></form>`,
   );
 }
 

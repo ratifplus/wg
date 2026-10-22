@@ -1,9 +1,10 @@
+import { ALL_CLEAR, HOUSE, ICONS } from "./icons.js";
+
 const EMAIL_KEY = "wg-email";
 const RULES_KEY = "wg-rules-seen";
 const $ = (id) => document.getElementById(id);
 
-const EMOJI = { trash: "🗑️", kitchen: "🍳", bathroom: "🛁", floors: "🧹", fridges: "🧊" };
-const STATUS = { done: "Done ✓", due: "Due today", overdue: "Overdue", open: "To do" };
+const STATUS = { done: "Done", due: "Due today", overdue: "Overdue", open: "To do" };
 
 let email = load(EMAIL_KEY);
 let data = null;
@@ -60,8 +61,9 @@ function dueText(task) {
 }
 
 function avatar(name, id, size = "") {
-  const hue = (Number(id) * 137) % 360;
-  return `<span class="avatar ${size}" style="--h:${hue}">${esc((name || "?").trim().charAt(0).toUpperCase())}</span>`;
+  // Shades of the one blue, so people are told apart without extra colours.
+  const lightness = [52, 32, 66, 42, 60][Number(id) % 5];
+  return `<span class="avatar ${size}" style="--l:${lightness}%">${esc((name || "?").trim().charAt(0).toUpperCase())}</span>`;
 }
 
 function firstName() {
@@ -70,7 +72,7 @@ function firstName() {
 
 function greeting() {
   const h = new Date().getHours();
-  if (h < 5) return "Up late";
+  if (h < 5) return "Hi";
   if (h < 12) return "Good morning";
   if (h < 18) return "Hey";
   return "Good evening";
@@ -117,13 +119,13 @@ function taskItem(task) {
   const mine = task.memberId === data.me.id;
   let action = "";
   if (mine && task.doneAt) {
-    action = `<div class="task-actions"><button class="link" data-undo="${esc(task.id)}">Oops, not done yet</button></div>`;
+    action = `<div class="task-actions"><button class="link" data-undo="${esc(task.id)}">Undo</button></div>`;
   } else if (mine) {
-    action = `<div class="task-actions"><button class="button done-btn" data-done="${esc(task.id)}">✓ I've done it</button></div>`;
+    action = `<div class="task-actions"><button class="button small" data-done="${esc(task.id)}">${ICONS.check} I've done it</button></div>`;
   }
   const who = mine ? "You" : esc(task.memberName);
-  return `<li class="task c-${task.chore}${task.doneAt ? " is-done" : ""}" data-task="${esc(task.id)}">
-    <div class="task-icon">${EMOJI[task.chore] ?? "✨"}</div>
+  return `<li class="task${mine ? " mine" : ""}${task.doneAt ? " is-done" : ""}" data-task="${esc(task.id)}">
+    <div class="task-icon">${task.doneAt ? ICONS.check : ICONS[task.chore]}</div>
     <div class="task-body">
       <div class="task-head">
         <div class="task-title">${esc(task.title)}</div>
@@ -138,7 +140,7 @@ function taskItem(task) {
 function render(justDone) {
   show("app");
   const me = data.me;
-  $("switch").innerHTML = `${avatar(me.name, me.id)} ${esc(firstName())}`;
+  $("switch").innerHTML = `${avatar(me.name, me.id)}${esc(firstName())}`;
   $("switch").title = "Not you? Switch person";
 
   const mine = data.tasks.filter((t) => t.memberId === me.id);
@@ -146,14 +148,14 @@ function render(justDone) {
   const open = mine.filter((t) => !t.doneAt);
   const late = open.filter((t) => t.status === "overdue");
 
-  $("greeting").textContent = `${greeting()}, ${firstName()}!`;
+  $("greeting").textContent = `${greeting()}, ${firstName()}`;
   $("headline").textContent = !data.started
     ? "Let's get the crew together."
     : late.length
-      ? `${late.length === 1 ? "One job is" : `${late.length} jobs are`} waiting on you 👀`
+      ? `${late.length === 1 ? "One job is" : `${late.length} jobs are`} overdue.`
       : open.length
         ? `You've got ${open.length === 1 ? "one job" : `${open.length} jobs`} this round.`
-        : "You're all done. Legend. 🎉";
+        : "You're all done for this round.";
 
   // Waiting room until the schedule starts.
   const missing = Math.max(0, data.maxMembers - data.members.length);
@@ -172,23 +174,24 @@ function render(justDone) {
   if (current.length) {
     const ratio = doneCount / current.length;
     requestAnimationFrame(() => {
-      $("ring-fg").style.strokeDashoffset = String(314.16 * (1 - ratio));
+      $("bar-fill").style.width = `${ratio * 100}%`;
     });
-    $("progress-count").textContent = `${doneCount} of ${current.length} done`;
+    $("progress-pct").textContent = `${Math.round(ratio * 100)}%`;
+    $("progress-count").textContent = `${doneCount} of ${current.length} jobs done`;
     $("progress-text").textContent =
       ratio === 1
-        ? "Spotless. The WG thanks you all. ✨"
+        ? "The whole flat is clean."
         : ratio >= 0.6
-          ? "Nearly there, keep it going!"
+          ? "Nearly there."
           : ratio > 0
-            ? "Good start. The flat is getting there."
-            : "Fresh round, fresh start.";
+            ? "Good start."
+            : "A fresh round has started.";
   }
 
   $("mine-wrap").hidden = !data.started;
   $("mine").innerHTML = mine.length
     ? mine.map(taskItem).join("")
-    : `<li class="card empty"><span class="big-emoji">🛋️</span>Nothing on your list. Put your feet up.</li>`;
+    : `<li class="card empty">${ALL_CLEAR}Nothing on your list right now.</li>`;
 
   $("others-wrap").hidden = others.length === 0;
   $("others").innerHTML = others.map(taskItem).join("");
@@ -196,7 +199,7 @@ function render(justDone) {
   $("upcoming-wrap").hidden = data.upcoming.length === 0;
   $("upcoming").innerHTML = data.upcoming
     .map(
-      (u) => `<li><div class="emoji">${EMOJI[u.chore]}</div><div>${esc(u.title)}</div>
+      (u) => `<li><div class="ico">${ICONS[u.chore]}</div><div class="title">${esc(u.title)}</div>
       <div class="who">${avatar(u.memberName, data.members.find((m) => m.name === u.memberName)?.id ?? 0)} ${esc(u.memberName === me.name ? "You" : u.memberName)}</div>
       <div class="when">from ${fmt(u.start)}</div></li>`,
     )
@@ -206,7 +209,7 @@ function render(justDone) {
     .map(
       (m) => `<li>${avatar(m.name, m.id, "lg")}
       <div class="info"><strong>${esc(m.name)}${m.id === me.id ? " (you)" : ""}</strong><span>${esc(m.email)}</span></div>
-      <span class="score">${m.doneCount ? `⭐ ${m.doneCount}` : ""}</span>
+      ${m.doneCount ? `<span class="score">${m.doneCount} done</span>` : ""}
       <button class="link" data-remove="${m.id}" data-name="${esc(m.name)}">Remove</button></li>`,
     )
     .join("");
@@ -214,31 +217,13 @@ function render(justDone) {
   $("history-wrap").hidden = data.history.length === 0;
   $("history").innerHTML = data.history
     .map(
-      (t) => `<li>${avatar(t.memberName, t.memberId)}<span class="what">${EMOJI[t.chore]} <strong>${esc(t.memberName)}</strong> · ${esc(t.title.toLowerCase())}</span><span class="when">${fmt(t.due)}</span></li>`,
+      (t) => `<li>${avatar(t.memberName, t.memberId)}<span class="what"><strong>${esc(t.memberName)}</strong> · ${esc(t.title.toLowerCase())}</span><span class="when">${fmt(t.due)}</span></li>`,
     )
     .join("");
 
   if (justDone) {
     const card = document.querySelector(`[data-task="${CSS.escape(justDone)}"]`);
     card?.classList.add("pop");
-  }
-}
-
-function confetti() {
-  if (matchMedia("(prefers-reduced-motion: reduce)").matches) return;
-  const colors = ["#ff6b4a", "#3fae8c", "#4aa3ff", "#e8b100", "#36c2d6", "#ef4b5f"];
-  const layer = $("confetti");
-  for (let i = 0; i < 70; i++) {
-    const bit = document.createElement("span");
-    bit.className = "bit";
-    bit.style.left = `${Math.random() * 100}vw`;
-    bit.style.background = colors[i % colors.length];
-    bit.style.setProperty("--dx", `${(Math.random() - 0.5) * 200}px`);
-    bit.style.setProperty("--r", `${Math.random() * 720 - 360}deg`);
-    bit.style.animationDuration = `${1.6 + Math.random() * 1.4}s`;
-    bit.style.animationDelay = `${Math.random() * 0.3}s`;
-    layer.append(bit);
-    setTimeout(() => bit.remove(), 3500);
   }
 }
 
@@ -311,8 +296,8 @@ $("invite").addEventListener("click", async () => {
       await navigator.share({ title: "WG Chores", text, url });
     } else {
       await navigator.clipboard.writeText(`${text} ${url}`);
-      $("invite").textContent = "✓ Link copied";
-      setTimeout(() => ($("invite").textContent = "📨 Invite them"), 2000);
+      $("invite-label").textContent = "Link copied";
+      setTimeout(() => ($("invite-label").textContent = "Invite them"), 2000);
     }
   } catch {
     // Share sheet dismissed.
@@ -338,7 +323,6 @@ document.addEventListener("click", async (event) => {
       return;
     }
     render(target.dataset.done);
-    if (target.dataset.done) confetti();
   } catch (error) {
     alert(error.message);
     target.disabled = false;
@@ -346,6 +330,9 @@ document.addEventListener("click", async (event) => {
 });
 
 /* ---------- start ---------- */
+
+for (const el of document.querySelectorAll("[data-icon]")) el.innerHTML = ICONS[el.dataset.icon];
+$("house").innerHTML = HOUSE;
 
 const firstVisit = !load(RULES_KEY);
 if (firstVisit) show("rules");
