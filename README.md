@@ -58,8 +58,7 @@ Try the cron locally with `npx wrangler dev --test-scheduled` and open
 
 ## Deploying
 
-Everything is declared in `wrangler.jsonc`. On the first deploy wrangler creates the
-`wg` D1 database (no `database_id` needed).
+Everything is declared in `wrangler.jsonc`, including the `wg` D1 database (Western Europe).
 
 Email goes out through Cloudflare Email Service from `wg@notify.tiph.agency`, reusing
 the sending domain already set up for tiph.agency in the same Cloudflare account. To use

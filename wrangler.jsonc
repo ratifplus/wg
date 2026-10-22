@@ -17,12 +17,12 @@
       "allowed_sender_addresses": ["wg@notify.tiph.agency"]
     }
   ],
-  // No database_id: wrangler provisions the database on the first deploy.
   // The Worker creates its own tables, so there are no migrations to apply.
   "d1_databases": [
     {
       "binding": "DB",
-      "database_name": "wg"
+      "database_name": "wg",
+      "database_id": "38dc933b-d53f-4dc4-83e7-084ece41ac3f"
     }
   ],
   "vars": {
