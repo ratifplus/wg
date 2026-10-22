@@ -43,7 +43,8 @@ const SCHEMA = [
     email TEXT NOT NULL UNIQUE,
     name TEXT NOT NULL,
     position INTEGER NOT NULL,
-    joined_at TEXT NOT NULL
+    joined_at TEXT NOT NULL,
+    left_at TEXT
   )`,
   `CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
@@ -67,6 +68,11 @@ let schemaReady = false;
 async function ensureSchema(db: D1Database) {
   if (schemaReady) return;
   await db.batch(SCHEMA.map((sql) => db.prepare(sql)));
+  // Databases created before members could move out lack left_at.
+  const { results } = await db.prepare("PRAGMA table_info(members)").all<{ name: string }>();
+  if (!results.some((c) => c.name === "left_at")) {
+    await db.prepare("ALTER TABLE members ADD COLUMN left_at TEXT").run();
+  }
   schemaReady = true;
 }
 
@@ -126,11 +132,18 @@ async function verify(db: D1Database, taskId: string, signature: string): Promis
   return diff === 0;
 }
 
+// Current members, in rotation order. People who moved out keep their row
+// (and their history) with left_at set, so they can come back.
 async function listMembers(db: D1Database): Promise<Member[]> {
   const { results } = await db
-    .prepare("SELECT id, email, name, position FROM members ORDER BY position, id")
+    .prepare("SELECT id, email, name, position FROM members WHERE left_at IS NULL ORDER BY position, id")
     .all<Member>();
   return results;
+}
+
+async function allNames(db: D1Database): Promise<Map<number, string>> {
+  const { results } = await db.prepare("SELECT id, name FROM members").all<{ id: number; name: string }>();
+  return new Map(results.map((m) => [m.id, m.name]));
 }
 
 function normaliseEmail(value: unknown): string | null {
@@ -143,9 +156,36 @@ async function memberByEmail(db: D1Database, email: unknown): Promise<Member | n
   const normalised = normaliseEmail(email);
   if (!normalised) return null;
   return db
-    .prepare("SELECT id, email, name, position FROM members WHERE email = ?")
+    .prepare("SELECT id, email, name, position FROM members WHERE email = ? AND left_at IS NULL")
     .bind(normalised)
     .first<Member>();
+}
+
+async function memberById(db: D1Database, id: number): Promise<Member | null> {
+  return db
+    .prepare("SELECT id, email, name, position FROM members WHERE id = ? AND left_at IS NULL")
+    .bind(id)
+    .first<Member>();
+}
+
+// Sign-in is kept in an HttpOnly cookie set by the server, which browsers keep
+// far longer than script storage (Safari wipes that after 7 days unused).
+const SESSION_COOKIE = "wg_session";
+const SESSION_MAX_AGE = 60 * 60 * 24 * 400;
+
+async function sessionCookie(db: D1Database, memberId: number): Promise<string> {
+  const value = `${memberId}.${await sign(db, `session:${memberId}`)}`;
+  return `${SESSION_COOKIE}=${value}; Path=/; Max-Age=${SESSION_MAX_AGE}; HttpOnly; Secure; SameSite=Lax`;
+}
+
+const CLEAR_SESSION = `${SESSION_COOKIE}=; Path=/; Max-Age=0; HttpOnly; Secure; SameSite=Lax`;
+
+async function sessionMember(request: Request, db: D1Database): Promise<Member | null> {
+  const cookie = request.headers.get("cookie") ?? "";
+  const match = cookie.match(new RegExp(`(?:^|;\\s*)${SESSION_COOKIE}=(\\d+)\\.([\\w-]+)`));
+  if (!match) return null;
+  if (!(await verify(db, `session:${match[1]}`, match[2]))) return null;
+  return memberById(db, Number(match[1]));
 }
 
 /**
@@ -209,7 +249,7 @@ async function tick(env: Env) {
   const full = (await listMembers(env.DB)).length >= (Number(env.MAX_MEMBERS) || 3);
   const { results } = await env.DB.prepare(
     `SELECT t.*, m.email, m.name FROM tasks t JOIN members m ON m.id = t.member_id
-     WHERE t.done_at IS NULL AND t.start <= ?`,
+     WHERE t.done_at IS NULL AND t.start <= ? AND m.left_at IS NULL`,
   )
     .bind(today)
     .all<Task & { email: string; name: string }>();
@@ -276,8 +316,7 @@ async function readJson(request: Request): Promise<Record<string, unknown>> {
   }
 }
 
-function taskView(task: Task, members: Member[], today: string) {
-  const member = members.find((m) => m.id === task.member_id);
+function taskView(task: Task, names: Map<number, string>, today: string) {
   return {
     id: task.id,
     chore: task.chore,
@@ -287,19 +326,19 @@ function taskView(task: Task, members: Member[], today: string) {
     start: task.start,
     due: task.due,
     memberId: task.member_id,
-    memberName: member?.name ?? "Former member",
+    memberName: (task.member_id !== null && names.get(task.member_id)) || "Former member",
     doneAt: task.done_at,
     status: task.done_at ? "done" : today > task.due ? "overdue" : today === task.due ? "due" : "open",
   };
 }
 
-async function state(env: Env, email: unknown) {
+async function state(env: Env, me: Member | null) {
   const db = env.DB;
   const today = todayIn(env.TIME_ZONE);
   await ensureTasks(env, today);
   const members = await listMembers(db);
+  const names = await allNames(db);
   const anchor = await getSetting(db, "anchor");
-  const me = members.find((m) => m.email === normaliseEmail(email)) ?? null;
 
   const { results: current } = await db
     .prepare(
@@ -341,9 +380,9 @@ async function state(env: Env, email: unknown) {
       email,
       doneCount: doneCounts.find((d) => d.member_id === id)?.count ?? 0,
     })),
-    tasks: current.map((t) => taskView(t, members, today)),
+    tasks: current.map((t) => taskView(t, names, today)),
     upcoming,
-    history: history.map((t) => taskView(t, members, today)),
+    history: history.map((t) => taskView(t, names, today)),
   };
 }
 
@@ -355,44 +394,65 @@ async function markDone(db: D1Database, taskId: string): Promise<Task | null> {
   return db.prepare("SELECT * FROM tasks WHERE id = ?").bind(taskId).first<Task>();
 }
 
+function withCookie(response: Response, cookie: string): Response {
+  response.headers.append("set-cookie", cookie);
+  return response;
+}
+
 async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
   const url = new URL(request.url);
   const db = env.DB;
   const path = url.pathname;
 
   if (path === "/api/state" && request.method === "GET") {
-    return json(await state(env, url.searchParams.get("email")));
+    const me = (await memberByEmail(db, url.searchParams.get("email"))) ?? (await sessionMember(request, db));
+    return json(await state(env, me));
   }
 
   if (request.method !== "POST") return json({ error: "Not found." }, 404);
   const body = await readJson(request);
 
+  if (path === "/api/signout") {
+    return withCookie(json({ ok: true }), CLEAR_SESSION);
+  }
+
+  // Sign in, sign up, or come back after moving out: all by email.
   if (path === "/api/join") {
     const email = normaliseEmail(body.email);
     if (!email) return json({ error: "Invalid email." }, 400);
-    const existing = await memberByEmail(db, email);
-    if (existing) return json(await state(env, email));
-
-    const name = typeof body.name === "string" ? body.name.trim().slice(0, 40) : "";
-    if (!name) return json({ error: "First name required." }, 400);
     const members = await listMembers(db);
     const max = Number(env.MAX_MEMBERS) || 3;
-    if (members.length >= max) {
-      return json(
-        { error: "WG is full. Use a registered email." },
-        403,
-      );
+
+    let me = await memberByEmail(db, email);
+    if (!me) {
+      const former = await db
+        .prepare("SELECT id, name FROM members WHERE email = ? AND left_at IS NOT NULL")
+        .bind(email)
+        .first<{ id: number; name: string }>();
+      const name = typeof body.name === "string" ? body.name.trim().slice(0, 40) : "";
+      if (!former && !name) return json({ error: "New member: first name required." }, 400);
+      if (members.length >= max) return json({ error: "WG is full. Use a registered email." }, 403);
+
+      const position = members.reduce((p, m) => Math.max(p, m.position + 1), 0);
+      if (former) {
+        // Moved back in: same account, same history, back in the rotation.
+        await db
+          .prepare("UPDATE members SET left_at = NULL, position = ? WHERE id = ?")
+          .bind(position, former.id)
+          .run();
+      } else {
+        await db
+          .prepare("INSERT INTO members (email, name, position, joined_at) VALUES (?, ?, ?, ?)")
+          .bind(email, name, position, new Date().toISOString())
+          .run();
+      }
+      me = await memberByEmail(db, email);
+      ctx.waitUntil(tick(env));
     }
-    const position = members.reduce((p, m) => Math.max(p, m.position + 1), 0);
-    await db
-      .prepare("INSERT INTO members (email, name, position, joined_at) VALUES (?, ?, ?, ?)")
-      .bind(email, name, position, new Date().toISOString())
-      .run();
-    ctx.waitUntil(tick(env));
-    return json(await state(env, email));
+    return withCookie(json(await state(env, me)), await sessionCookie(db, me!.id));
   }
 
-  const me = await memberByEmail(db, body.email);
+  const me = (await memberByEmail(db, body.email)) ?? (await sessionMember(request, db));
   if (!me) return json({ error: "Sign in required." }, 401);
 
   const taskAction = path.match(/^\/api\/tasks\/([^/]+)\/(done|undo)$/);
@@ -403,16 +463,22 @@ async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Pro
     if (task.member_id !== me.id) return json({ error: "Only the assigned member can change this job." }, 403);
     if (taskAction[2] === "done") await markDone(db, id);
     else await db.prepare("UPDATE tasks SET done_at = NULL WHERE id = ?").bind(id).run();
-    return json(await state(env, me.email));
+    return json(await state(env, me));
   }
 
+  // Moving out keeps the account and its history; signing in again restores it.
   const remove = path.match(/^\/api\/members\/(\d+)\/remove$/);
   if (remove) {
-    await db.prepare("DELETE FROM members WHERE id = ?").bind(Number(remove[1])).run();
+    await db
+      .prepare("UPDATE members SET left_at = ? WHERE id = ? AND left_at IS NULL")
+      .bind(new Date().toISOString(), Number(remove[1]))
+      .run();
     const remaining = await listMembers(db);
     if (remaining.length === 0) await db.prepare("DELETE FROM settings WHERE key = 'anchor'").run();
     ctx.waitUntil(tick(env));
-    return json(await state(env, me.email));
+    const stillMe = await memberById(db, me.id);
+    const response = json(await state(env, stillMe));
+    return stillMe ? response : withCookie(response, CLEAR_SESSION);
   }
 
   return json({ error: "Not found." }, 404);

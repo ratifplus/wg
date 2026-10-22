@@ -5,8 +5,13 @@ two fridges and the trash cans. Runs on Cloudflare Workers with a D1 database.
 
 ## How it works
 
-- **No login.** You open the app and enter your email (and your name the first time).
-  The email is remembered in the browser. The WG holds up to 3 people (`MAX_MEMBERS`).
+- **No password.** You enter your email (and your first name the first time). The
+  server then keeps you signed in with an HttpOnly cookie for 400 days, so it survives
+  browsers clearing script storage. Same email on another device signs you straight in.
+  The WG holds up to 3 people (`MAX_MEMBERS`).
+- **Moving out and back in.** Removing someone keeps their account and history. When
+  they sign in again with the same email, they're back in the rotation with everything
+  they had.
 - **The schedule starts** the day the first person joins. Every job is due on a
   **Friday**, and the first deadlines fall in that same week. Jobs rebalance as people
   join or leave. "Your turn" emails are held until everyone has joined.
@@ -34,7 +39,7 @@ two fridges and the trash cans. Runs on Cloudflare Workers with a D1 database.
   who's up next, and recently finished jobs. You can mark your own jobs done (or undo)
   in the app too.
 - **Removing a roommate** hands their open jobs to whoever the rotation now gives them
-  to, and frees the spot for someone new.
+  to, and frees the spot.
 - The rules screen shows the house address from the `ADDRESS` var in `wrangler.jsonc`.
 
 ## Code

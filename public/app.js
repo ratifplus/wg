@@ -99,9 +99,17 @@ function showJoin(message) {
   $("join-error").textContent = message ?? "";
 }
 
+// The server keeps the sign-in in a long-lived cookie; the email in local
+// storage is a second copy, refreshed from whatever the server says.
+function remember() {
+  email = data.me?.email ?? null;
+  store(EMAIL_KEY, email);
+}
+
 async function refresh() {
   data = await api(`/api/state?email=${encodeURIComponent(email ?? "")}`);
   $("address").textContent = data.address ?? "";
+  if (data.me) remember();
   if (!data.me) showJoin();
   else render();
 }
@@ -134,7 +142,7 @@ function render(justDone) {
   show("app");
   const me = data.me;
   $("switch").innerHTML = `${avatar(me.name, me.id)}${esc(firstName())}`;
-  $("switch").title = "Switch member";
+  $("switch").title = "Sign out";
 
   const mine = data.tasks.filter((t) => t.memberId === me.id);
   const others = data.tasks.filter((t) => t.memberId !== me.id);
@@ -226,21 +234,8 @@ $("join-form").addEventListener("submit", async (event) => {
   button.disabled = true;
   try {
     email = $("email").value.trim().toLowerCase();
-    const known = await api(`/api/state?email=${encodeURIComponent(email)}`);
-    $("address").textContent = known.address ?? "";
-    if (known.me) {
-      data = known;
-    } else {
-      if (known.members.length >= known.maxMembers) {
-        throw new Error("WG is full. Use a registered email.");
-      }
-      if (!$("name").value.trim()) {
-        $("name").focus();
-        throw new Error("New member: first name required.");
-      }
-      data = await api("/api/join", { name: $("name").value.trim() });
-    }
-    store(EMAIL_KEY, email);
+    data = await api("/api/join", { name: $("name").value.trim() });
+    remember();
     render();
   } catch (error) {
     $("join-error").hidden = false;
@@ -250,7 +245,9 @@ $("join-form").addEventListener("submit", async (event) => {
   }
 });
 
-$("switch").addEventListener("click", () => {
+$("switch").addEventListener("click", async () => {
+  if (!confirm("Sign out?")) return;
+  await api("/api/signout", {}).catch(() => {});
   email = null;
   store(EMAIL_KEY, null);
   $("email").value = "";
@@ -281,13 +278,14 @@ document.addEventListener("click", async (event) => {
   if (target.dataset.done) path = `/api/tasks/${encodeURIComponent(target.dataset.done)}/done`;
   else if (target.dataset.undo) path = `/api/tasks/${encodeURIComponent(target.dataset.undo)}/undo`;
   else {
-    if (!confirm(`Remove ${target.dataset.name}? Open jobs will be reassigned.`)) return;
+    if (!confirm(`Remove ${target.dataset.name}? Open jobs will be reassigned. History is kept and returns if they sign in again.`)) return;
     path = `/api/members/${target.dataset.remove}/remove`;
   }
   target.disabled = true;
   try {
     data = await api(path, {});
     if (!data.me) {
+      email = null;
       store(EMAIL_KEY, null);
       showJoin();
       return;
