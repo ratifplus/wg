@@ -1,4 +1,4 @@
-import { escapeHtml, formatDate, reminderEmail } from "./email";
+import { EMOJI, escapeHtml, formatDate, reminderEmail } from "./email";
 import {
   CHORES,
   type ChoreId,
@@ -306,6 +306,10 @@ async function state(env: Env, email: unknown) {
     .bind(today)
     .all<Task>();
 
+  const { results: doneCounts } = await db
+    .prepare("SELECT member_id, COUNT(*) AS count FROM tasks WHERE done_at IS NOT NULL GROUP BY member_id")
+    .all<{ member_id: number; count: number }>();
+
   const upcoming =
     anchor && members.length
       ? nextSlots(anchor, today, members.length).map((slot) => ({
@@ -322,7 +326,12 @@ async function state(env: Env, email: unknown) {
     started: Boolean(anchor),
     maxMembers: Number(env.MAX_MEMBERS) || 3,
     me,
-    members: members.map(({ id, name, email }) => ({ id, name, email })),
+    members: members.map(({ id, name, email }) => ({
+      id,
+      name,
+      email,
+      doneCount: doneCounts.find((d) => d.member_id === id)?.count ?? 0,
+    })),
     tasks: current.map((t) => taskView(t, members, today)),
     upcoming,
     history: history.map((t) => taskView(t, members, today)),
@@ -417,7 +426,9 @@ async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Pro
 function page(title: string, body: string, status = 200): Response {
   return new Response(
     `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>${escapeHtml(title)}</title><link rel="stylesheet" href="/styles.css"></head>
+<title>${escapeHtml(title)}</title><link rel="icon" href="/icon.svg" type="image/svg+xml">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap">
+<link rel="stylesheet" href="/styles.css"></head>
 <body><main class="shell narrow"><div class="card confirm">${body}</div></main></body></html>`,
     { status, headers: { "content-type": "text/html; charset=utf-8", "cache-control": "no-store" } },
   );
@@ -444,15 +455,15 @@ async function handleDone(request: Request, env: Env): Promise<Response> {
     await markDone(env.DB, id);
     return page(
       "Done",
-      `<div class="tick" aria-hidden="true">✓</div><h1>Thanks!</h1><p><strong>${escapeHtml(title)}</strong> is marked as done. Everyone in the WG can see it now.</p><a class="button" href="/">See the schedule</a>`,
+      `<div class="tick" aria-hidden="true">🎉</div><h1>Legend, thank you!</h1><p class="muted"><strong>${escapeHtml(title)}</strong> is marked as done. Everyone in the WG can see it now.</p><a class="button" href="/">See the schedule</a>`,
     );
   }
 
   return page(
     title,
-    `<h1>${escapeHtml(title)}</h1><p>Due ${escapeHtml(formatDate(task.due))}.</p>
+    `<div class="tick" aria-hidden="true">${EMOJI[task.chore]}</div><h1>${escapeHtml(title)}</h1><p class="muted">Due ${escapeHtml(formatDate(task.due))}. All finished?</p>
 <form method="post" action="/done"><input type="hidden" name="t" value="${escapeHtml(id)}"><input type="hidden" name="s" value="${escapeHtml(signature)}">
-<button class="button" type="submit">Yes, I've done it</button></form>`,
+<button class="button big" type="submit">✓ Yes, I've done it</button></form>`,
   );
 }
 

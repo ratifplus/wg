@@ -3,65 +3,114 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <meta name="theme-color" content="#2f6b4f" />
+    <meta name="theme-color" content="#fff6e9" />
     <title>WG Chores</title>
     <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link href="https://fonts.googleapis.com/css2?family=Fredoka:wght@500;600;700&family=Nunito:wght@400;600;700;800&display=swap" rel="stylesheet" />
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
     <main class="shell">
       <header class="top">
         <div class="brand">
-          <img src="/icon.svg" alt="" width="32" height="32" />
+          <img src="/icon.svg" alt="" width="36" height="36" />
           <span>WG Chores</span>
         </div>
-        <button id="switch" class="link" hidden>Not you?</button>
+        <div class="top-actions">
+          <button id="rules-open" class="chip" type="button" hidden>📜 Rules</button>
+          <button id="switch" class="chip" type="button" hidden></button>
+        </div>
       </header>
 
-      <section id="join" class="card narrow-card" hidden>
-        <h1>Who are you?</h1>
-        <p class="muted">Enter your email. That's your account: no password. Reminders go to this address when it's your turn.</p>
-        <form id="join-form">
-          <label>Email<input id="email" type="email" autocomplete="email" required placeholder="you@example.com" /></label>
-          <label id="name-field" hidden>Your name<input id="name" type="text" autocomplete="given-name" maxlength="40" placeholder="e.g. Ratif" /></label>
+      <!-- Shown on the very first visit, and again from the Rules button. -->
+      <section id="rules" class="rules" hidden>
+        <div class="rules-hero">
+          <div class="bounce">🏠</div>
+          <h1>Welcome to the WG!</h1>
+          <p>Three people, one home. Here's how we keep it nice.</p>
+        </div>
+        <ol class="rule-list">
+          <li style="--c: var(--trash)"><span class="rule-icon">🗑️</span><div><strong>Trash, every week</strong><span>One person takes all the bins out by Sunday. Then it's the next person's turn.</span></div></li>
+          <li style="--c: var(--kitchen)"><span class="rule-icon">🧽</span><div><strong>Big clean, every 2 weeks</strong><span>One does the kitchen, one the bathroom &amp; toilet, one the floors. Jobs swap every round.</span></div></li>
+          <li style="--c: var(--fridges)"><span class="rule-icon">🧊</span><div><strong>Fridges, every month</strong><span>One person cleans both fridges before the month ends.</span></div></li>
+          <li style="--c: var(--bathroom)"><span class="rule-icon">📬</span><div><strong>We'll email you</strong><span>When it's your turn and on the due day. Tap “I've done it” in the email or here.</span></div></li>
+          <li style="--c: var(--late)"><span class="rule-icon">⏰</span><div><strong>Missed the day?</strong><span>A reminder lands every 2 days until it's done.</span></div></li>
+          <li style="--c: var(--floors)"><span class="rule-icon">👀</span><div><strong>No secrets</strong><span>Everyone sees who's done their job and who hasn't.</span></div></li>
+        </ol>
+        <button id="rules-close" class="button big" type="button">Got it, let's go →</button>
+      </section>
+
+      <section id="join" class="card join" hidden>
+        <div class="wave">👋</div>
+        <h1>Who's this?</h1>
+        <p class="muted">Your email is your account. No password, ever.</p>
+        <form id="join-form" method="post" action="/" autocomplete="on">
+          <label for="email">Email</label>
+          <input id="email" name="email" type="email" autocomplete="email" inputmode="email" required />
+          <label for="name">First name</label>
+          <input id="name" name="given-name" type="text" autocomplete="given-name" autocapitalize="words" maxlength="40" />
+          <p class="hint">Your first name is only needed the first time.</p>
           <p id="join-error" class="error" role="alert" hidden></p>
-          <button class="button" type="submit">Continue</button>
+          <button class="button big" type="submit">Let me in</button>
         </form>
       </section>
 
       <div id="app" hidden>
-        <section id="waiting" class="card" hidden>
-          <h1>Almost ready</h1>
+        <section class="hello">
+          <p id="greeting" class="eyebrow"></p>
+          <h1 id="headline"></h1>
+        </section>
+
+        <section id="waiting" class="card waiting" hidden>
+          <div id="seats" class="seats"></div>
+          <h2 class="plain-h">Waiting for your roommates</h2>
           <p id="waiting-text" class="muted"></p>
-          <p class="muted">Send your roommates this page so they can add their email. The schedule starts as soon as everyone is in.</p>
-          <button id="start" class="button secondary" type="button">Start now anyway</button>
+          <div class="row">
+            <button id="invite" class="button" type="button">📨 Invite them</button>
+            <button id="start" class="button ghost" type="button">Start without them</button>
+          </div>
         </section>
 
-        <section id="mine" hidden></section>
-
-        <section>
-          <h2>Current jobs</h2>
-          <ul id="tasks" class="tasks"></ul>
+        <section id="progress" class="card progress" hidden>
+          <svg viewBox="0 0 120 120" class="ring" aria-hidden="true">
+            <circle cx="60" cy="60" r="50" class="ring-bg" />
+            <circle cx="60" cy="60" r="50" class="ring-fg" id="ring-fg" />
+          </svg>
+          <div>
+            <div id="progress-count" class="progress-count"></div>
+            <div id="progress-text" class="muted"></div>
+          </div>
         </section>
 
-        <section>
+        <section id="mine-wrap" hidden>
+          <h2>Your jobs</h2>
+          <ul id="mine" class="tasks"></ul>
+        </section>
+
+        <section id="others-wrap" hidden>
+          <h2>Everyone else</h2>
+          <ul id="others" class="tasks"></ul>
+        </section>
+
+        <section id="upcoming-wrap" hidden>
           <h2>Up next</h2>
-          <ul id="upcoming" class="plain"></ul>
+          <ul id="upcoming" class="next"></ul>
         </section>
 
         <section>
-          <h2>Roommates</h2>
-          <ul id="members" class="plain"></ul>
+          <h2>The crew</h2>
+          <ul id="members" class="crew"></ul>
         </section>
 
-        <section>
-          <h2>Done recently</h2>
-          <ul id="history" class="plain"></ul>
+        <section id="history-wrap" hidden>
+          <h2>Wall of fame</h2>
+          <ul id="history" class="history"></ul>
         </section>
-
-        <p class="muted small">Trash every week · kitchen, bathroom &amp; toilet, and floors every 2 weeks · both fridges every month. Jobs rotate between everyone. Unfinished jobs get a reminder email every 2 days after the due date.</p>
       </div>
     </main>
+    <div id="confetti" aria-hidden="true"></div>
     <script src="/app.js" type="module"></script>
   </body>
 </html>
