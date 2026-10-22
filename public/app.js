@@ -311,3 +311,17 @@ refresh()
     if (firstVisit) show("rules");
   })
   .catch((error) => (firstVisit ? show("rules") : showJoin(error.message)));
+
+// Keep everyone's view current: re-sync when the app comes back to the
+// foreground and every 30 seconds while it's open on the dashboard.
+async function sync() {
+  if (document.hidden || $("app").hidden || !email) return;
+  try {
+    data = await api(`/api/state?email=${encodeURIComponent(email)}`);
+    if (data.me) render();
+  } catch {
+    // Offline for a moment; the next sync catches up.
+  }
+}
+document.addEventListener("visibilitychange", sync);
+setInterval(sync, 30_000);
