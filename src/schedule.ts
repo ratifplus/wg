@@ -13,32 +13,32 @@ export interface Chore {
 export const CHORES: Record<ChoreId, Chore> = {
   trash: {
     id: "trash",
-    title: "Take out the trash",
-    detail: "Empty all the trash cans and take the bins out.",
+    title: "Trash",
+    detail: "Empty all trash cans. Bins out.",
     every: "Every week",
   },
   kitchen: {
     id: "kitchen",
-    title: "Clean the kitchen",
-    detail: "Counters, tables, stove and sink.",
+    title: "Kitchen",
+    detail: "Counters, tables, stove, sink.",
     every: "Every 2 weeks",
   },
   bathroom: {
     id: "bathroom",
-    title: "Clean the bathroom and toilet",
-    detail: "Toilet, sink, shower and mirror.",
+    title: "Bathroom & toilet",
+    detail: "Toilet, sink, shower, mirror.",
     every: "Every 2 weeks",
   },
   floors: {
     id: "floors",
-    title: "Clean the floors",
-    detail: "Vacuum and mop all the floors.",
+    title: "Floors",
+    detail: "Vacuum and mop all floors.",
     every: "Every 2 weeks",
   },
   fridges: {
     id: "fridges",
-    title: "Clean both fridges",
-    detail: "Throw out old food, wipe the shelves and doors of both fridges.",
+    title: "Fridges",
+    detail: "Both fridges. Remove old food, wipe shelves and doors.",
     every: "Every month",
   },
 };

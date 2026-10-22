@@ -28,29 +28,28 @@
       <section id="rules" class="rules" hidden>
         <div class="rules-hero">
           <div id="house"></div>
-          <h1>Welcome to the WG</h1>
-          <p class="muted">Three people, one home. Here's how we keep it nice.</p>
+          <h1>House rules</h1>
+          <p id="address" class="muted"></p>
         </div>
         <ol class="rule-list">
-          <li><span class="rule-icon" data-icon="trash"></span><div><strong>Trash, every week</strong><span>One person takes all the bins out by Sunday, then it's the next person's turn.</span></div></li>
-          <li><span class="rule-icon" data-icon="kitchen"></span><div><strong>Big clean, every 2 weeks</strong><span>One does the kitchen, one the bathroom and toilet, one the floors. Jobs swap every round.</span></div></li>
-          <li><span class="rule-icon" data-icon="fridges"></span><div><strong>Fridges, every month</strong><span>One person cleans both fridges before the month ends.</span></div></li>
-          <li><span class="rule-icon" data-icon="mail"></span><div><strong>We'll email you</strong><span>When it's your turn and on the due day. Tap “I've done it” in the email or here.</span></div></li>
-          <li><span class="rule-icon" data-icon="clock"></span><div><strong>Missed the day?</strong><span>A reminder arrives every 2 days until it's done.</span></div></li>
-          <li><span class="rule-icon" data-icon="eye"></span><div><strong>Everyone can see</strong><span>Who has done their job and who hasn't.</span></div></li>
+          <li><span class="rule-icon" data-icon="trash"></span><div><strong>Trash</strong><span>Weekly · 1 person · by Sunday</span></div></li>
+          <li><span class="rule-icon" data-icon="kitchen"></span><div><strong>Cleaning</strong><span>Every 2 weeks · kitchen, bathroom &amp; toilet, floors · rotating</span></div></li>
+          <li><span class="rule-icon" data-icon="fridges"></span><div><strong>Fridges</strong><span>Monthly · 1 person · both fridges</span></div></li>
+          <li><span class="rule-icon" data-icon="mail"></span><div><strong>Email</strong><span>Sent when a job is assigned and on the due date</span></div></li>
+          <li><span class="rule-icon" data-icon="clock"></span><div><strong>Overdue</strong><span>Reminder every 2 days until marked done</span></div></li>
+          <li><span class="rule-icon" data-icon="eye"></span><div><strong>Visible</strong><span>All members see all progress</span></div></li>
         </ol>
-        <button id="rules-close" class="button big" type="button">Got it <span data-icon="arrow"></span></button>
+        <button id="rules-close" class="button big" type="button">Continue <span data-icon="arrow"></span></button>
       </section>
 
       <section id="join" class="card join" hidden>
-        <h1>Who's this?</h1>
-        <p class="muted">Your email is your account. No password.</p>
+        <h1>Sign in</h1>
         <form id="join-form" method="post" action="/" autocomplete="on">
           <label for="email">Email</label>
           <input id="email" name="email" type="email" autocomplete="email" inputmode="email" required />
           <label for="name">First name</label>
           <input id="name" name="given-name" type="text" autocomplete="given-name" autocapitalize="words" maxlength="40" />
-          <p class="hint">Only needed the first time.</p>
+          <p class="hint">New members only</p>
           <p id="join-error" class="error" role="alert" hidden></p>
           <button class="button big" type="submit">Continue</button>
         </form>
@@ -64,11 +63,10 @@
 
         <section id="waiting" class="card waiting" hidden>
           <div id="seats" class="seats"></div>
-          <h2 class="plain-h">Waiting for your roommates</h2>
           <p id="waiting-text" class="muted"></p>
           <div class="row">
-            <button id="invite" class="button" type="button"><span data-icon="share"></span><span id="invite-label">Invite them</span></button>
-            <button id="start" class="button ghost" type="button">Start without them</button>
+            <button id="invite" class="button" type="button"><span data-icon="share"></span><span id="invite-label">Invite</span></button>
+            <button id="start" class="button ghost" type="button">Start now</button>
           </div>
         </section>
 
@@ -76,7 +74,6 @@
           <div class="progress-top">
             <div>
               <div id="progress-count" class="progress-count"></div>
-              <div id="progress-text" class="muted"></div>
             </div>
             <div id="progress-pct" class="progress-pct"></div>
           </div>
@@ -89,22 +86,22 @@
         </section>
 
         <section id="others-wrap" hidden>
-          <h2>Everyone else</h2>
+          <h2>Others</h2>
           <ul id="others" class="tasks"></ul>
         </section>
 
         <section id="upcoming-wrap" hidden>
-          <h2>Up next</h2>
+          <h2>Next</h2>
           <ul id="upcoming" class="next"></ul>
         </section>
 
         <section>
-          <h2>Roommates</h2>
+          <h2>Members</h2>
           <ul id="members" class="crew"></ul>
         </section>
 
         <section id="history-wrap" hidden>
-          <h2>Recently done</h2>
+          <h2>History</h2>
           <ul id="history" class="history"></ul>
         </section>
       </div>

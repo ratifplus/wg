@@ -4,7 +4,7 @@ const EMAIL_KEY = "wg-email";
 const RULES_KEY = "wg-rules-seen";
 const $ = (id) => document.getElementById(id);
 
-const STATUS = { done: "Done", due: "Due today", overdue: "Overdue", open: "To do" };
+const STATUS = { done: "Done", due: "Due today", overdue: "Overdue", open: "Open" };
 
 let email = load(EMAIL_KEY);
 let data = null;
@@ -70,14 +70,6 @@ function firstName() {
   return data.me.name.split(" ")[0];
 }
 
-function greeting() {
-  const h = new Date().getHours();
-  if (h < 5) return "Hi";
-  if (h < 12) return "Good morning";
-  if (h < 18) return "Hey";
-  return "Good evening";
-}
-
 async function api(path, body) {
   const res = await fetch(
     path,
@@ -109,6 +101,7 @@ function showJoin(message) {
 
 async function refresh() {
   data = await api(`/api/state?email=${encodeURIComponent(email ?? "")}`);
+  $("address").textContent = data.address ?? "";
   if (!data.me) showJoin();
   else render();
 }
@@ -121,7 +114,7 @@ function taskItem(task) {
   if (mine && task.doneAt) {
     action = `<div class="task-actions"><button class="link" data-undo="${esc(task.id)}">Undo</button></div>`;
   } else if (mine) {
-    action = `<div class="task-actions"><button class="button small" data-done="${esc(task.id)}">${ICONS.check} I've done it</button></div>`;
+    action = `<div class="task-actions"><button class="button small" data-done="${esc(task.id)}">${ICONS.check} Mark done</button></div>`;
   }
   const who = mine ? "You" : esc(task.memberName);
   return `<li class="task${mine ? " mine" : ""}${task.doneAt ? " is-done" : ""}" data-task="${esc(task.id)}">
@@ -141,21 +134,21 @@ function render(justDone) {
   show("app");
   const me = data.me;
   $("switch").innerHTML = `${avatar(me.name, me.id)}${esc(firstName())}`;
-  $("switch").title = "Not you? Switch person";
+  $("switch").title = "Switch member";
 
   const mine = data.tasks.filter((t) => t.memberId === me.id);
   const others = data.tasks.filter((t) => t.memberId !== me.id);
   const open = mine.filter((t) => !t.doneAt);
   const late = open.filter((t) => t.status === "overdue");
 
-  $("greeting").textContent = `${greeting()}, ${firstName()}`;
+  $("greeting").textContent = firstName();
   $("headline").textContent = !data.started
-    ? "Let's get the crew together."
+    ? "Waiting for members"
     : late.length
-      ? `${late.length === 1 ? "One job is" : `${late.length} jobs are`} overdue.`
+      ? `${late.length} overdue`
       : open.length
-        ? `You've got ${open.length === 1 ? "one job" : `${open.length} jobs`} this round.`
-        : "You're all done for this round.";
+        ? `${open.length} open ${open.length === 1 ? "job" : "jobs"}`
+        : "All done";
 
   // Waiting room until the schedule starts.
   const missing = Math.max(0, data.maxMembers - data.members.length);
@@ -163,9 +156,7 @@ function render(justDone) {
   $("seats").innerHTML =
     data.members.map((m) => avatar(m.name, m.id, "lg")).join("") +
     Array.from({ length: missing }, () => `<span class="seat">?</span>`).join("");
-  $("waiting-text").textContent = missing
-    ? `${data.members.length} of ${data.maxMembers} are in. Send them the link and the schedule starts as soon as everyone has joined.`
-    : "Everyone's in!";
+  $("waiting-text").textContent = `${data.members.length} / ${data.maxMembers} joined`;
 
   // Progress across everyone's current jobs.
   const current = data.tasks;
@@ -177,21 +168,13 @@ function render(justDone) {
       $("bar-fill").style.width = `${ratio * 100}%`;
     });
     $("progress-pct").textContent = `${Math.round(ratio * 100)}%`;
-    $("progress-count").textContent = `${doneCount} of ${current.length} jobs done`;
-    $("progress-text").textContent =
-      ratio === 1
-        ? "The whole flat is clean."
-        : ratio >= 0.6
-          ? "Nearly there."
-          : ratio > 0
-            ? "Good start."
-            : "A fresh round has started.";
+    $("progress-count").textContent = `${doneCount} / ${current.length} done`;
   }
 
   $("mine-wrap").hidden = !data.started;
   $("mine").innerHTML = mine.length
     ? mine.map(taskItem).join("")
-    : `<li class="card empty">${ALL_CLEAR}Nothing on your list right now.</li>`;
+    : `<li class="card empty">${ALL_CLEAR}No open jobs</li>`;
 
   $("others-wrap").hidden = others.length === 0;
   $("others").innerHTML = others.map(taskItem).join("");
@@ -201,7 +184,7 @@ function render(justDone) {
     .map(
       (u) => `<li><div class="ico">${ICONS[u.chore]}</div><div class="title">${esc(u.title)}</div>
       <div class="who">${avatar(u.memberName, data.members.find((m) => m.name === u.memberName)?.id ?? 0)} ${esc(u.memberName === me.name ? "You" : u.memberName)}</div>
-      <div class="when">from ${fmt(u.start)}</div></li>`,
+      <div class="when">${fmt(u.start)}</div></li>`,
     )
     .join("");
 
@@ -217,7 +200,7 @@ function render(justDone) {
   $("history-wrap").hidden = data.history.length === 0;
   $("history").innerHTML = data.history
     .map(
-      (t) => `<li>${avatar(t.memberName, t.memberId)}<span class="what"><strong>${esc(t.memberName)}</strong> · ${esc(t.title.toLowerCase())}</span><span class="when">${fmt(t.due)}</span></li>`,
+      (t) => `<li>${avatar(t.memberName, t.memberId)}<span class="what"><strong>${esc(t.memberName)}</strong> · ${esc(t.title)}</span><span class="when">${fmt(t.due)}</span></li>`,
     )
     .join("");
 
@@ -244,15 +227,16 @@ $("join-form").addEventListener("submit", async (event) => {
   try {
     email = $("email").value.trim().toLowerCase();
     const known = await api(`/api/state?email=${encodeURIComponent(email)}`);
+    $("address").textContent = known.address ?? "";
     if (known.me) {
       data = known;
     } else {
       if (known.members.length >= known.maxMembers) {
-        throw new Error(`This WG already has ${known.maxMembers} people. Use the email you joined with.`);
+        throw new Error("WG is full. Use a registered email.");
       }
       if (!$("name").value.trim()) {
         $("name").focus();
-        throw new Error("Looks like you're new here. What's your first name?");
+        throw new Error("New member: first name required.");
       }
       data = await api("/api/join", { name: $("name").value.trim() });
     }
@@ -276,7 +260,7 @@ $("switch").addEventListener("click", () => {
 
 $("start").addEventListener("click", async (event) => {
   const button = event.currentTarget;
-  if (!confirm("Start the schedule now? The jobs will be shared between the people who have joined so far.")) return;
+  if (!confirm("Start schedule with current members?")) return;
   button.disabled = true;
   try {
     data = await api("/api/start", {});
@@ -290,14 +274,14 @@ $("start").addEventListener("click", async (event) => {
 
 $("invite").addEventListener("click", async () => {
   const url = location.origin;
-  const text = "Join our WG chore schedule. Just add your email:";
+  const text = "WG Chores";
   try {
     if (navigator.share) {
       await navigator.share({ title: "WG Chores", text, url });
     } else {
       await navigator.clipboard.writeText(`${text} ${url}`);
-      $("invite-label").textContent = "Link copied";
-      setTimeout(() => ($("invite-label").textContent = "Invite them"), 2000);
+      $("invite-label").textContent = "Copied";
+      setTimeout(() => ($("invite-label").textContent = "Invite"), 2000);
     }
   } catch {
     // Share sheet dismissed.
@@ -311,7 +295,7 @@ document.addEventListener("click", async (event) => {
   if (target.dataset.done) path = `/api/tasks/${encodeURIComponent(target.dataset.done)}/done`;
   else if (target.dataset.undo) path = `/api/tasks/${encodeURIComponent(target.dataset.undo)}/undo`;
   else {
-    if (!confirm(`Remove ${target.dataset.name} from the WG? Their open jobs move to someone else.`)) return;
+    if (!confirm(`Remove ${target.dataset.name}? Open jobs will be reassigned.`)) return;
     path = `/api/members/${target.dataset.remove}/remove`;
   }
   target.disabled = true;

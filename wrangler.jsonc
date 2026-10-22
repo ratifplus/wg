@@ -28,7 +28,9 @@
   "vars": {
     "MAIL_FROM": "wg@notify.tiph.agency",
     "TIME_ZONE": "Europe/Berlin",
-    "MAX_MEMBERS": "3"
+    "MAX_MEMBERS": "3",
+    // Shown as the tagline on the house rules screen.
+    "ADDRESS": "Ludwig-Pfau-Straße 7"
   },
   // Daily at 07:00 UTC (08:00 or 09:00 in Berlin): send due emails and reminders.
   "triggers": { "crons": ["0 7 * * *"] },

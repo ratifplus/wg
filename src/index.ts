@@ -16,6 +16,7 @@ export interface Env {
   MAIL_FROM: string;
   TIME_ZONE: string;
   MAX_MEMBERS: string;
+  ADDRESS?: string;
 }
 
 interface Member {
@@ -323,6 +324,7 @@ async function state(env: Env, email: unknown) {
 
   return {
     today,
+    address: env.ADDRESS ?? "",
     started: Boolean(anchor),
     maxMembers: Number(env.MAX_MEMBERS) || 3,
     me,
@@ -367,17 +369,17 @@ async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Pro
 
   if (path === "/api/join") {
     const email = normaliseEmail(body.email);
-    if (!email) return json({ error: "Please enter a valid email address." }, 400);
+    if (!email) return json({ error: "Invalid email." }, 400);
     const existing = await memberByEmail(db, email);
     if (existing) return json(await state(env, email));
 
     const name = typeof body.name === "string" ? body.name.trim().slice(0, 40) : "";
-    if (!name) return json({ error: "Please tell us your name." }, 400);
+    if (!name) return json({ error: "First name required." }, 400);
     const members = await listMembers(db);
     const max = Number(env.MAX_MEMBERS) || 3;
     if (members.length >= max) {
       return json(
-        { error: `This WG already has ${max} people. Use the email you joined with.` },
+        { error: "WG is full. Use a registered email." },
         403,
       );
     }
@@ -392,7 +394,7 @@ async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Pro
   }
 
   const me = await memberByEmail(db, body.email);
-  if (!me) return json({ error: "Enter your email first." }, 401);
+  if (!me) return json({ error: "Sign in required." }, 401);
 
   if (path === "/api/start") {
     await startSchedule(env);
@@ -404,8 +406,8 @@ async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Pro
   if (taskAction) {
     const id = decodeURIComponent(taskAction[1]);
     const task = await db.prepare("SELECT * FROM tasks WHERE id = ?").bind(id).first<Task>();
-    if (!task) return json({ error: "That job doesn't exist." }, 404);
-    if (task.member_id !== me.id) return json({ error: "Only the person on this job can change it." }, 403);
+    if (!task) return json({ error: "Job not found." }, 404);
+    if (task.member_id !== me.id) return json({ error: "Only the assigned member can change this job." }, 403);
     if (taskAction[2] === "done") await markDone(db, id);
     else await db.prepare("UPDATE tasks SET done_at = NULL WHERE id = ?").bind(id).run();
     return json(await state(env, me.email));
@@ -449,11 +451,11 @@ async function handleDone(request: Request, env: Env): Promise<Response> {
   const id = params.get("t") ?? "";
   const signature = params.get("s") ?? "";
   if (!id || !signature || !(await verify(env.DB, id, signature))) {
-    return page("Link not valid", `<h1>This link isn't valid</h1><p>Open the schedule to mark your job as done.</p><a class="button" href="/">Open the schedule</a>`, 400);
+    return page("Link not valid", `<h1>Invalid link</h1><a class="button" href="/">Open schedule</a>`, 400);
   }
   const task = await env.DB.prepare("SELECT * FROM tasks WHERE id = ?").bind(id).first<Task>();
   if (!task) {
-    return page("Job not found", `<h1>This job no longer exists</h1><a class="button" href="/">Open the schedule</a>`, 404);
+    return page("Job not found", `<h1>Job not found</h1><a class="button" href="/">Open schedule</a>`, 404);
   }
   const { title } = CHORES[task.chore];
 
@@ -461,15 +463,15 @@ async function handleDone(request: Request, env: Env): Promise<Response> {
     await markDone(env.DB, id);
     return page(
       "Done",
-      `${ALL_CLEAR}<h1>Thank you!</h1><p class="muted"><strong>${escapeHtml(title)}</strong> is marked as done. Everyone in the WG can see it now.</p><a class="button" href="/">See the schedule</a>`,
+      `${ALL_CLEAR}<h1>Marked done</h1><p class="muted">${escapeHtml(title)}</p><a class="button" href="/">Open schedule</a>`,
     );
   }
 
   return page(
     title,
-    `<h1>${escapeHtml(title)}</h1><p class="muted">Due ${escapeHtml(formatDate(task.due))}. All finished?</p>
+    `<h1>${escapeHtml(title)}</h1><p class="muted">Due ${escapeHtml(formatDate(task.due))}</p>
 <form method="post" action="/done"><input type="hidden" name="t" value="${escapeHtml(id)}"><input type="hidden" name="s" value="${escapeHtml(signature)}">
-<button class="button big" type="submit">Yes, I've done it</button></form>`,
+<button class="button big" type="submit">Confirm done</button></form>`,
   );
 }
 
