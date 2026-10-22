@@ -73,10 +73,16 @@ export function daysBetween(from: string, to: string): number {
   return Math.round((toMs(to) - toMs(from)) / DAY);
 }
 
-// Monday of the week containing `date`.
-export function weekStart(date: string): string {
-  const weekday = new Date(toMs(date)).getUTCDay(); // 0 = Sunday
-  return addDays(date, -((weekday + 6) % 7));
+// Every job is due on a Friday. Missed jobs can still be done at the weekend.
+const DUE_WEEKDAY = 5; // 0 = Sunday
+
+function weekday(date: string): number {
+  return new Date(toMs(date)).getUTCDay();
+}
+
+// The first Friday on or after `date`.
+export function fridayOnOrAfter(date: string): string {
+  return addDays(date, (DUE_WEEKDAY - weekday(date) + 7) % 7);
 }
 
 export function todayIn(timeZone: string, now = new Date()): string {
@@ -89,9 +95,18 @@ export function todayIn(timeZone: string, now = new Date()): string {
   }).format(now);
 }
 
-function lastDayOfMonth(date: string): string {
+function lastFridayOfMonth(year: number, month: number): string {
+  // month is 1-based; Date.UTC normalises month 13 and day 0.
+  const last = fromMs(Date.UTC(year, month, 0));
+  return addDays(last, -((weekday(last) - DUE_WEEKDAY + 7) % 7));
+}
+
+// The fridge deadline that `date` falls under: the last Friday of its month,
+// or of the next month once that day has passed.
+function fridgeDue(date: string): string {
   const [y, m] = date.split("-").map(Number);
-  return fromMs(Date.UTC(y, m, 0));
+  const due = lastFridayOfMonth(y, m);
+  return date <= due ? due : lastFridayOfMonth(y, m + 1);
 }
 
 function monthIndex(date: string): number {
@@ -99,47 +114,57 @@ function monthIndex(date: string): number {
   return y * 12 + (m - 1);
 }
 
+function later(a: string, b: string): string {
+  return a > b ? a : b;
+}
+
 /**
  * Every chore slot whose period contains `date`, for a schedule that began
- * on `anchor` (a Monday) with `members` people.
+ * on `anchor` (the day the first person joined) with `members` people.
+ * Everything is due on a Friday, and the first deadlines are the first
+ * Friday on or after `anchor`, so the schedule starts in the week people join.
  *
- * - Trash: weekly, Monday to Sunday, one person per week in turn.
- * - Kitchen, bathroom, floors: every two weeks, one job each, rotating.
- * - Fridges: each calendar month, one person per month in turn.
+ * - Trash: due every Friday, one person per week in turn.
+ * - Kitchen, bathroom, floors: due every second Friday, one job each, rotating.
+ * - Fridges: due the last Friday of each month, one person per month in turn.
  */
 export function slotsOn(anchor: string, date: string, members: number): Slot[] {
   if (members < 1 || date < anchor) return [];
-  const days = daysBetween(anchor, date);
+  const firstDue = fridayOnOrAfter(anchor);
+  const sinceFirst = Math.max(0, daysBetween(firstDue, date));
   const slots: Slot[] = [];
 
-  const week = Math.floor(days / 7);
-  const weekStartDate = addDays(anchor, week * 7);
+  const week = Math.ceil(sinceFirst / 7);
+  const weekDue = addDays(firstDue, week * 7);
   slots.push({
     chore: "trash",
-    start: weekStartDate,
-    due: addDays(weekStartDate, 6),
+    start: later(anchor, addDays(weekDue, -6)),
+    due: weekDue,
     memberIndex: week % members,
   });
 
-  const cycle = Math.floor(days / 14);
-  const cycleStart = addDays(anchor, cycle * 14);
+  const cycle = Math.ceil(sinceFirst / 14);
+  const cycleDue = addDays(firstDue, cycle * 14);
   CLEANING.forEach((chore, i) => {
     slots.push({
       chore,
-      start: cycleStart,
-      due: addDays(cycleStart, 13),
+      start: later(anchor, addDays(cycleDue, -13)),
+      due: cycleDue,
       memberIndex: (i + cycle) % members,
     });
   });
 
   // Offset by 2 so that the first month's fridges don't land on the person
   // who also has the first week's trash and the first kitchen.
-  const month = monthIndex(date) - monthIndex(anchor);
-  const monthStart = `${date.slice(0, 7)}-01`;
+  // The first fridge deadline is at least a week out, so nobody gets a day's notice.
+  const firstFridge = fridgeDue(addDays(anchor, 7));
+  const due = later(fridgeDue(date), firstFridge);
+  const [y, m] = due.split("-").map(Number);
+  const month = monthIndex(due) - monthIndex(firstFridge);
   slots.push({
     chore: "fridges",
-    start: monthStart < anchor ? anchor : monthStart,
-    due: lastDayOfMonth(date),
+    start: due === firstFridge ? anchor : addDays(lastFridayOfMonth(y, m - 1), 1),
+    due,
     memberIndex: (month + 2) % members,
   });
 

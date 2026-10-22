@@ -152,7 +152,7 @@ function render(justDone) {
 
   // Waiting room until the schedule starts.
   const missing = Math.max(0, data.maxMembers - data.members.length);
-  $("waiting").hidden = data.started;
+  $("waiting").hidden = missing === 0;
   $("seats").innerHTML =
     data.members.map((m) => avatar(m.name, m.id, "lg")).join("") +
     Array.from({ length: missing }, () => `<span class="seat">?</span>`).join("");
@@ -256,20 +256,6 @@ $("switch").addEventListener("click", () => {
   $("email").value = "";
   $("name").value = "";
   showJoin();
-});
-
-$("start").addEventListener("click", async (event) => {
-  const button = event.currentTarget;
-  if (!confirm("Start schedule with current members?")) return;
-  button.disabled = true;
-  try {
-    data = await api("/api/start", {});
-    render();
-  } catch (error) {
-    alert(error.message);
-  } finally {
-    button.disabled = false;
-  }
 });
 
 $("invite").addEventListener("click", async () => {

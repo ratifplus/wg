@@ -6,7 +6,6 @@ import {
   reminderFor,
   slotsOn,
   todayIn,
-  weekStart,
 } from "./schedule";
 
 export interface Env {
@@ -150,15 +149,19 @@ async function memberByEmail(db: D1Database, email: unknown): Promise<Member | n
 }
 
 /**
- * Create the tasks for every chore period that contains `today`, and hand
- * open tasks of anyone who has left to whoever the rotation now gives them to.
+ * Create the tasks for every chore period that contains `today`. When people
+ * join or leave, open tasks move to whoever the rotation now gives them to.
+ * The schedule starts the day the first person joins.
  */
 async function ensureTasks(env: Env, today: string): Promise<boolean> {
   const db = env.DB;
-  const anchor = await getSetting(db, "anchor");
-  if (!anchor) return false;
   const members = await listMembers(db);
   if (members.length === 0) return false;
+  let anchor = await getSetting(db, "anchor");
+  if (!anchor) {
+    await db.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('anchor', ?)").bind(today).run();
+    anchor = (await getSetting(db, "anchor"))!;
+  }
 
   const ids = new Set(members.map((m) => m.id));
   const statements: D1PreparedStatement[] = [];
@@ -176,9 +179,9 @@ async function ensureTasks(env: Env, today: string): Promise<boolean> {
       db
         .prepare(
           `UPDATE tasks SET member_id = ?, notified_on = NULL, due_notified_on = NULL, last_reminder_on = NULL
-           WHERE id = ? AND done_at IS NULL AND (member_id IS NULL OR member_id NOT IN (${[...ids].join(",")}))`,
+           WHERE id = ? AND done_at IS NULL AND member_id IS NOT ?`,
         )
-        .bind(memberId, id),
+        .bind(memberId, id, memberId),
     );
   }
   // Overdue jobs from earlier periods belonging to someone who has left.
@@ -203,6 +206,7 @@ async function tick(env: Env) {
   if (!(await ensureTasks(env, today))) return;
 
   const origin = await appUrl(env);
+  const full = (await listMembers(env.DB)).length >= (Number(env.MAX_MEMBERS) || 3);
   const { results } = await env.DB.prepare(
     `SELECT t.*, m.email, m.name FROM tasks t JOIN members m ON m.id = t.member_id
      WHERE t.done_at IS NULL AND t.start <= ?`,
@@ -223,6 +227,9 @@ async function tick(env: Env) {
       today,
     );
     if (!kind) continue;
+    // Jobs move around while people are still joining, so hold the "your
+    // turn" email until everyone is in. Due-day and overdue emails still go.
+    if (kind === "assigned" && !full) continue;
 
     const signature = await sign(env.DB, task.id);
     const message = reminderEmail({
@@ -340,13 +347,6 @@ async function state(env: Env, email: unknown) {
   };
 }
 
-async function startSchedule(env: Env) {
-  const today = todayIn(env.TIME_ZONE);
-  await env.DB.prepare("INSERT OR IGNORE INTO settings (key, value) VALUES ('anchor', ?)")
-    .bind(weekStart(today))
-    .run();
-}
-
 async function markDone(db: D1Database, taskId: string): Promise<Task | null> {
   await db
     .prepare("UPDATE tasks SET done_at = ? WHERE id = ? AND done_at IS NULL")
@@ -388,19 +388,12 @@ async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Pro
       .prepare("INSERT INTO members (email, name, position, joined_at) VALUES (?, ?, ?, ?)")
       .bind(email, name, position, new Date().toISOString())
       .run();
-    if (members.length + 1 >= max) await startSchedule(env);
     ctx.waitUntil(tick(env));
     return json(await state(env, email));
   }
 
   const me = await memberByEmail(db, body.email);
   if (!me) return json({ error: "Sign in required." }, 401);
-
-  if (path === "/api/start") {
-    await startSchedule(env);
-    ctx.waitUntil(tick(env));
-    return json(await state(env, me.email));
-  }
 
   const taskAction = path.match(/^\/api\/tasks\/([^/]+)\/(done|undo)$/);
   if (taskAction) {

@@ -7,24 +7,26 @@ two fridges and the trash cans. Runs on Cloudflare Workers with a D1 database.
 
 - **No login.** You open the app and enter your email (and your name the first time).
   The email is remembered in the browser. The WG holds up to 3 people (`MAX_MEMBERS`).
-- **The schedule starts** when the third person joins, or earlier if someone presses
-  "Start now anyway". Weeks run Monday to Sunday from the week it started.
+- **The schedule starts** the day the first person joins. Every job is due on a
+  **Friday**, and the first deadlines fall in that same week. Jobs rebalance as people
+  join or leave. "Your turn" emails are held until everyone has joined.
 - **Jobs and rotation**, in the order people joined:
 
   | Job | How often | Due |
   | --- | --- | --- |
-  | Take out the trash | every week, one person | Sunday |
-  | Clean the kitchen (counters, tables, stove, sink) | every 2 weeks | second Sunday |
-  | Clean the bathroom and toilet | every 2 weeks | second Sunday |
-  | Clean the floors | every 2 weeks | second Sunday |
-  | Clean both fridges | every month, one person | last day of the month |
+  | Trash | every week, one person | every Friday |
+  | Kitchen (counters, tables, stove, sink) | every 2 weeks | every second Friday |
+  | Bathroom and toilet | every 2 weeks | every second Friday |
+  | Floors | every 2 weeks | every second Friday |
+  | Fridges (both) | every month, one person | last Friday of the month |
 
   The three cleaning jobs are split one each, and everyone moves to the next job every
-  cycle.
+  cycle. A missed Friday can be caught up on the weekend.
 - **Emails** (sent daily at 07:00 UTC by a cron trigger):
   - "Your turn" when a job starts,
   - "Due today" on the due day,
-  - "Overdue" every 2 days after the due day until the job is marked done.
+  - "Overdue" every 2 days after the due day (Sunday, Tuesday, ...) until the job is
+    marked done.
 
   Every email has an **I've done it** button. It opens a page with one confirm button,
   so link scanners in mail clients can't tick a job off by opening the link.
@@ -33,6 +35,7 @@ two fridges and the trash cans. Runs on Cloudflare Workers with a D1 database.
   in the app too.
 - **Removing a roommate** hands their open jobs to whoever the rotation now gives them
   to, and frees the spot for someone new.
+- The rules screen shows the house address from the `ADDRESS` var in `wrangler.jsonc`.
 
 ## Code
 
