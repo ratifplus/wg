@@ -1,0 +1,36 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "wg",
+  "compatibility_date": "2026-09-28",
+  "main": "./src/index.ts",
+  "assets": {
+    // The single-page app in public/. /api/* and /done reach the Worker.
+    "directory": "./public",
+    "binding": "ASSETS",
+    "run_worker_first": ["/api/*", "/done"]
+  },
+  // Reminders go out through Cloudflare Email Service. Sending is already
+  // onboarded on notify.tiph.agency (see the tiph repo), so this reuses it.
+  "send_email": [
+    {
+      "name": "EMAIL",
+      "allowed_sender_addresses": ["wg@notify.tiph.agency"]
+    }
+  ],
+  // No database_id: wrangler provisions the database on the first deploy.
+  // The Worker creates its own tables, so there are no migrations to apply.
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "wg"
+    }
+  ],
+  "vars": {
+    "MAIL_FROM": "wg@notify.tiph.agency",
+    "TIME_ZONE": "Europe/Berlin",
+    "MAX_MEMBERS": "3"
+  },
+  // Daily at 07:00 UTC (08:00 or 09:00 in Berlin): send due emails and reminders.
+  "triggers": { "crons": ["0 7 * * *"] },
+  "observability": { "enabled": true }
+}

@@ -1,0 +1,67 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="theme-color" content="#2f6b4f" />
+    <title>WG Chores</title>
+    <link rel="icon" href="/icon.svg" type="image/svg+xml" />
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="shell">
+      <header class="top">
+        <div class="brand">
+          <img src="/icon.svg" alt="" width="32" height="32" />
+          <span>WG Chores</span>
+        </div>
+        <button id="switch" class="link" hidden>Not you?</button>
+      </header>
+
+      <section id="join" class="card narrow-card" hidden>
+        <h1>Who are you?</h1>
+        <p class="muted">Enter your email. That's your account: no password. Reminders go to this address when it's your turn.</p>
+        <form id="join-form">
+          <label>Email<input id="email" type="email" autocomplete="email" required placeholder="you@example.com" /></label>
+          <label id="name-field" hidden>Your name<input id="name" type="text" autocomplete="given-name" maxlength="40" placeholder="e.g. Ratif" /></label>
+          <p id="join-error" class="error" role="alert" hidden></p>
+          <button class="button" type="submit">Continue</button>
+        </form>
+      </section>
+
+      <div id="app" hidden>
+        <section id="waiting" class="card" hidden>
+          <h1>Almost ready</h1>
+          <p id="waiting-text" class="muted"></p>
+          <p class="muted">Send your roommates this page so they can add their email. The schedule starts as soon as everyone is in.</p>
+          <button id="start" class="button secondary" type="button">Start now anyway</button>
+        </section>
+
+        <section id="mine" hidden></section>
+
+        <section>
+          <h2>Current jobs</h2>
+          <ul id="tasks" class="tasks"></ul>
+        </section>
+
+        <section>
+          <h2>Up next</h2>
+          <ul id="upcoming" class="plain"></ul>
+        </section>
+
+        <section>
+          <h2>Roommates</h2>
+          <ul id="members" class="plain"></ul>
+        </section>
+
+        <section>
+          <h2>Done recently</h2>
+          <ul id="history" class="plain"></ul>
+        </section>
+
+        <p class="muted small">Trash every week · kitchen, bathroom &amp; toilet, and floors every 2 weeks · both fridges every month. Jobs rotate between everyone. Unfinished jobs get a reminder email every 2 days after the due date.</p>
+      </div>
+    </main>
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>

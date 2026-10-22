@@ -1,0 +1,103 @@
+:root {
+  --bg: #f4f1ea;
+  --card: #ffffff;
+  --ink: #1f2a24;
+  --muted: #5c6b62;
+  --line: #e2ddd2;
+  --accent: #2f6b4f;
+  --accent-ink: #ffffff;
+  --done: #2f6b4f;
+  --done-bg: #e3efe7;
+  --due: #8a5a00;
+  --due-bg: #fbefd5;
+  --late: #a3302a;
+  --late-bg: #f8e1df;
+  --open-bg: #ece9e1;
+  color-scheme: light;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #141a17;
+    --card: #1d2521;
+    --ink: #e9ede9;
+    --muted: #9aa8a0;
+    --line: #2c3631;
+    --accent: #6fbf95;
+    --accent-ink: #0f1a14;
+    --done: #8ed3ad;
+    --done-bg: #1f3a2c;
+    --due: #f2c46b;
+    --due-bg: #3a2f17;
+    --late: #f29a92;
+    --late-bg: #41201d;
+    --open-bg: #26302b;
+    color-scheme: dark;
+  }
+}
+
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font: 16px/1.5 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+}
+
+.shell { max-width: 640px; margin: 0 auto; padding: 16px 16px 48px; }
+.shell.narrow { max-width: 440px; padding-top: 12vh; }
+
+.top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; }
+.brand { display: flex; align-items: center; gap: 10px; font-weight: 700; font-size: 18px; }
+
+h1 { font-size: 24px; margin: 0 0 8px; line-height: 1.25; }
+h2 { font-size: 13px; letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin: 28px 0 10px; }
+p { margin: 0 0 12px; }
+.muted { color: var(--muted); }
+.small { font-size: 14px; margin-top: 32px; }
+.error { color: var(--late); font-weight: 600; }
+
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; padding: 20px; }
+.narrow-card { max-width: 440px; margin: 8vh auto 0; }
+.confirm { text-align: center; }
+.confirm form { margin-top: 20px; }
+.tick { width: 56px; height: 56px; margin: 0 auto 12px; border-radius: 50%; display: grid; place-items: center; background: var(--done-bg); color: var(--done); font-size: 28px; font-weight: 700; }
+
+label { display: block; font-weight: 600; font-size: 14px; margin: 14px 0; }
+input {
+  display: block; width: 100%; margin-top: 6px; padding: 12px 14px; font: inherit;
+  color: var(--ink); background: var(--bg); border: 1px solid var(--line); border-radius: 10px;
+}
+input:focus { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.button {
+  display: inline-block; border: 0; border-radius: 10px; padding: 12px 18px; font: inherit; font-weight: 600;
+  background: var(--accent); color: var(--accent-ink); cursor: pointer; text-decoration: none; min-height: 44px;
+}
+.button.secondary { background: transparent; color: var(--accent); border: 1px solid var(--accent); }
+.button:disabled { opacity: .6; cursor: progress; }
+.link { background: none; border: 0; color: var(--accent); font: inherit; cursor: pointer; padding: 8px 0; }
+.link.danger { color: var(--late); font-size: 14px; }
+
+ul { list-style: none; padding: 0; margin: 0; }
+
+.tasks { display: grid; gap: 10px; }
+.task { background: var(--card); border: 1px solid var(--line); border-radius: 14px; padding: 14px 16px; }
+.task.mine { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent) inset; }
+.task-head { display: flex; justify-content: space-between; align-items: flex-start; gap: 12px; }
+.task-title { font-weight: 700; }
+.task-meta { color: var(--muted); font-size: 14px; }
+.task-actions { margin-top: 10px; }
+
+.pill { flex: none; font-size: 12px; font-weight: 700; padding: 3px 10px; border-radius: 999px; background: var(--open-bg); color: var(--muted); white-space: nowrap; }
+.pill.done { background: var(--done-bg); color: var(--done); }
+.pill.due { background: var(--due-bg); color: var(--due); }
+.pill.overdue { background: var(--late-bg); color: var(--late); }
+
+.plain li { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--line); }
+.plain li:last-child { border-bottom: 0; }
+.plain .sub { color: var(--muted); font-size: 14px; }
+
+#mine .card { margin-bottom: 4px; }
