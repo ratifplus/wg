@@ -172,13 +172,12 @@ function render(justDone) {
   const late = open.filter((t) => t.status === "overdue");
 
   $("greeting").textContent = firstName();
+  const onTime = open.length - late.length;
   $("headline").textContent = !data.started
     ? "Waiting for members"
-    : late.length
-      ? `${late.length} overdue`
-      : open.length
-        ? `${open.length} open ${open.length === 1 ? "job" : "jobs"}`
-        : "All done";
+    : !open.length
+      ? "All done"
+      : [late.length && `${late.length} overdue`, onTime && `${onTime} open`].filter(Boolean).join(" · ");
 
   // Waiting room until the schedule starts.
   const missing = Math.max(0, data.maxMembers - data.members.length);
@@ -188,18 +187,20 @@ function render(justDone) {
     Array.from({ length: missing }, () => `<span class="seat">?</span>`).join("");
   $("waiting-text").textContent = `${data.members.length} / ${data.maxMembers} joined`;
 
-  // Progress across everyone's current jobs.
-  const current = data.tasks;
-  const doneCount = current.filter((t) => t.doneAt).length;
-  $("progress").hidden = !data.started || current.length === 0;
-  if (current.length) {
-    const ratio = doneCount / current.length;
-    requestAnimationFrame(() => {
-      $("bar-fill").style.width = `${ratio * 100}%`;
-    });
-    $("progress-pct").textContent = `${Math.round(ratio * 100)}%`;
-    $("progress-count").textContent = `${doneCount} / ${current.length} done`;
-  }
+  // Whole WG: the bar covers this round's jobs (not yet past their due day);
+  // unfinished jobs from earlier rounds are counted separately below it.
+  const round = data.tasks.filter((t) => t.status !== "overdue");
+  const overdue = data.tasks.filter((t) => t.status === "overdue");
+  const doneCount = round.filter((t) => t.doneAt).length;
+  $("progress").hidden = !data.started || data.tasks.length === 0;
+  const ratio = round.length ? doneCount / round.length : 0;
+  requestAnimationFrame(() => {
+    $("bar-fill").style.width = `${ratio * 100}%`;
+  });
+  $("progress-pct").textContent = `${Math.round(ratio * 100)}%`;
+  $("progress-count").textContent = `${doneCount} of ${round.length} done`;
+  $("progress-late").hidden = overdue.length === 0;
+  $("progress-late").textContent = `${overdue.length} overdue from earlier rounds`;
 
   $("mine-wrap").hidden = !data.started;
   $("mine").innerHTML = mine.length

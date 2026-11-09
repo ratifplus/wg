@@ -118,6 +118,9 @@ input:focus { outline: 0; border-color: var(--blue); box-shadow: 0 0 0 4px color
 
 .progress { animation: rise .4s ease both; }
 .progress-top { display: flex; justify-content: space-between; align-items: flex-end; gap: 12px; margin-bottom: 14px; }
+.progress-label { margin: 0 0 6px; font-size: 13px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.progress-late { display: flex; align-items: center; gap: 8px; margin: 14px 0 0; font-size: 14px; font-weight: 700; color: var(--late); }
+.progress-late::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--late); }
 .progress-count { font-size: 20px; font-weight: 800; letter-spacing: -.01em; }
 .progress-pct { font-size: 32px; font-weight: 800; color: var(--blue); letter-spacing: -.03em; line-height: 1; }
 .bar { height: 10px; border-radius: 999px; background: var(--blue-50); overflow: hidden; }
