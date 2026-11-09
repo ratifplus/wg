@@ -45,8 +45,8 @@ export function reminderEmail({ kind, name, chore, due, doneUrl, appUrl }: Remin
   const note = kind === "overdue" ? "Reminder every 2 days until marked done." : "";
 
   const html = `<!doctype html>
-<html><body style="margin:0;padding:24px;background:#f6f8fc;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0d1530">
-<div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:20px;padding:28px;border:1px solid #e4e8f1">
+<html><body style="margin:0;padding:24px;background:#f7f6f2;font-family:-apple-system,Segoe UI,Roboto,Helvetica,Arial,sans-serif;color:#0b1a47">
+<div style="max-width:480px;margin:0 auto;background:#ffffff;border-radius:20px;padding:28px;border:1px solid #ecebe6;box-shadow:0 4px 16px rgba(11,26,71,.06)">
 <p style="margin:0 0 6px;font-size:13px;letter-spacing:.08em;text-transform:uppercase;color:#5d6680">WG Chores · ${escapeHtml(name)}</p>
 <h1 style="margin:0 0 6px;font-size:24px">${escapeHtml(title)}</h1>
 <p style="margin:0 0 12px;font-size:16px;font-weight:600;color:${kind === "overdue" ? "#e0364a" : "#1f4dff"}">${escapeHtml(status)}</p>
