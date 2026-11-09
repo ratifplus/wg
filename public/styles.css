@@ -198,6 +198,18 @@ ul { list-style: none; padding: 0; margin: 0; }
 .empty { text-align: center; padding: 20px; color: var(--muted); }
 .empty .illo { margin-bottom: 6px; }
 
+/* Reminder settings */
+.notify .segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; }
+.segmented label { margin: 0; font-size: 15px; font-weight: 600; cursor: pointer; }
+.segmented input { position: absolute; opacity: 0; pointer-events: none; }
+.segmented span { display: block; text-align: center; padding: 10px 6px; border-radius: 10px; color: var(--muted); transition: background .15s ease, color .15s ease; }
+.segmented input:checked + span { background: var(--surface); color: var(--blue); box-shadow: var(--shadow); }
+.segmented input:focus-visible + span { outline: 2px solid var(--blue); }
+.steps { margin: 18px 0 4px; padding-left: 20px; color: var(--muted); font-size: 15px; }
+.steps li { margin-bottom: 4px; }
+.steps a { color: var(--blue); font-weight: 600; }
+.notify #notify-status { margin: 14px 0 12px; }
+
 /* Email "I've done it" pages */
 .confirm { text-align: center; }
 .confirm .illo { margin-bottom: 8px; }

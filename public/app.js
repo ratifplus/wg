@@ -204,6 +204,8 @@ function render(justDone) {
     )
     .join("");
 
+  renderNotify();
+
   $("history-wrap").hidden = data.history.length === 0;
   $("history").innerHTML = data.history
     .map(
@@ -252,6 +254,65 @@ $("switch").addEventListener("click", async () => {
   $("email").value = "";
   $("name").value = "";
   showJoin();
+});
+
+/* ---------- reminder settings ---------- */
+
+let notifyDirty = false;
+
+function selectedChannel() {
+  return document.querySelector('input[name="channel"]:checked')?.value ?? "email";
+}
+
+function showWaFields() {
+  $("wa-fields").hidden = selectedChannel() === "email";
+}
+
+// Fill the form from the server, unless the person is in the middle of editing it.
+function renderNotify(force = false) {
+  if (notifyDirty && !force) return;
+  const me = data.me;
+  for (const input of document.querySelectorAll('input[name="channel"]')) input.checked = input.value === me.channel;
+  $("wa-phone").value = me.phone ?? "";
+  $("wa-key").value = "";
+  $("wa-key").placeholder = me.whatsapp ? "Saved" : "";
+  $("notify-status").textContent =
+    me.channel === "email" || !me.whatsapp
+      ? `Email to ${me.email}`
+      : me.channel === "both"
+        ? `Email and WhatsApp to ${me.phone}`
+        : `WhatsApp to ${me.phone}`;
+  $("notify-error").hidden = true;
+  showWaFields();
+  notifyDirty = false;
+}
+
+$("notify-form").addEventListener("input", () => {
+  notifyDirty = true;
+  showWaFields();
+});
+
+$("notify-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const button = event.submitter ?? event.target.querySelector("button");
+  button.disabled = true;
+  $("notify-error").hidden = true;
+  $("notify-status").textContent = selectedChannel() === "email" ? "Saving…" : "Sending a test message…";
+  try {
+    data = await api("/api/notifications", {
+      channel: selectedChannel(),
+      phone: $("wa-phone").value,
+      apikey: $("wa-key").value,
+    });
+    render();
+    renderNotify(true);
+  } catch (error) {
+    $("notify-status").textContent = "";
+    $("notify-error").hidden = false;
+    $("notify-error").textContent = error.message;
+  } finally {
+    button.disabled = false;
+  }
 });
 
 $("invite").addEventListener("click", async () => {

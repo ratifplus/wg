@@ -27,11 +27,17 @@ two fridges and the trash cans. Runs on Cloudflare Workers with a D1 database.
 
   The three cleaning jobs are split one each, and everyone moves to the next job every
   cycle. A missed Friday can be caught up on the weekend.
-- **Emails** (sent daily at 07:00 UTC by a cron trigger):
+- **Reminders** (sent daily at 07:00 UTC by a cron trigger):
   - "Your turn" when a job starts,
   - "Due today" on the due day,
   - "Overdue" every 2 days after the due day (Sunday, Tuesday, ...) until the job is
     marked done.
+
+  Each person picks **Email, WhatsApp or Both** under Reminders. WhatsApp goes through
+  [CallMeBot](https://www.callmebot.com/blog/free-api-whatsapp-messages/) (free): each
+  person activates it once from their WhatsApp, then enters their number and the API key
+  they get. Saving sends a test message. If a WhatsApp message fails, the reminder goes
+  by email instead. The key is stored server-side and never sent to the browser.
 
   Every email has an **I've done it** button. It opens a page with one confirm button,
   so link scanners in mail clients can't tick a job off by opening the link.
@@ -47,7 +53,7 @@ two fridges and the trash cans. Runs on Cloudflare Workers with a D1 database.
 - `src/schedule.ts`: rotation and reminder rules (pure functions, unit tested).
 - `src/index.ts`: the Worker. API (`/api/*`), the email done link (`/done`) and the
   daily cron. It creates its own tables on first use, so there are no migrations.
-- `src/email.ts`: email content.
+- `src/email.ts`, `src/whatsapp.ts`: email content, and WhatsApp messages via CallMeBot.
 - `public/`: the app (plain HTML, CSS and JS, no build step).
 
 The done links are signed with a key the Worker generates and stores in D1 on first use,

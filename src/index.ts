@@ -1,4 +1,5 @@
 import { escapeHtml, formatDate, reminderEmail } from "./email";
+import { normaliseKey, normalisePhone, reminderText, sendWhatsApp } from "./whatsapp";
 import {
   CHORES,
   type ChoreId,
@@ -44,7 +45,10 @@ const SCHEMA = [
     name TEXT NOT NULL,
     position INTEGER NOT NULL,
     joined_at TEXT NOT NULL,
-    left_at TEXT
+    left_at TEXT,
+    phone TEXT,
+    wa_key TEXT,
+    channel TEXT NOT NULL DEFAULT 'email'
   )`,
   `CREATE TABLE IF NOT EXISTS settings (
     key TEXT PRIMARY KEY,
@@ -68,10 +72,18 @@ let schemaReady = false;
 async function ensureSchema(db: D1Database) {
   if (schemaReady) return;
   await db.batch(SCHEMA.map((sql) => db.prepare(sql)));
-  // Databases created before members could move out lack left_at.
+  // Older databases lack the columns added since (moving out, WhatsApp).
   const { results } = await db.prepare("PRAGMA table_info(members)").all<{ name: string }>();
-  if (!results.some((c) => c.name === "left_at")) {
-    await db.prepare("ALTER TABLE members ADD COLUMN left_at TEXT").run();
+  const added: Record<string, string> = {
+    left_at: "left_at TEXT",
+    phone: "phone TEXT",
+    wa_key: "wa_key TEXT",
+    channel: "channel TEXT NOT NULL DEFAULT 'email'",
+  };
+  for (const [name, definition] of Object.entries(added)) {
+    if (!results.some((c) => c.name === name)) {
+      await db.prepare(`ALTER TABLE members ADD COLUMN ${definition}`).run();
+    }
   }
   schemaReady = true;
 }
@@ -239,7 +251,7 @@ async function appUrl(env: Env): Promise<string> {
   return (await getSetting(env.DB, "origin")) ?? "";
 }
 
-/** Create today's tasks and send every email that is due. Safe to run repeatedly. */
+/** Create today's tasks and send every reminder that is due. Safe to run repeatedly. */
 async function tick(env: Env) {
   await ensureSchema(env.DB);
   const today = todayIn(env.TIME_ZONE);
@@ -248,11 +260,11 @@ async function tick(env: Env) {
   const origin = await appUrl(env);
   const full = (await listMembers(env.DB)).length >= (Number(env.MAX_MEMBERS) || 3);
   const { results } = await env.DB.prepare(
-    `SELECT t.*, m.email, m.name FROM tasks t JOIN members m ON m.id = t.member_id
+    `SELECT t.*, m.email, m.name, m.phone, m.wa_key, m.channel FROM tasks t JOIN members m ON m.id = t.member_id
      WHERE t.done_at IS NULL AND t.start <= ? AND m.left_at IS NULL`,
   )
     .bind(today)
-    .all<Task & { email: string; name: string }>();
+    .all<Task & { email: string; name: string; phone: string | null; wa_key: string | null; channel: string }>();
 
   for (const task of results) {
     const kind = reminderFor(
@@ -272,27 +284,46 @@ async function tick(env: Env) {
     if (kind === "assigned" && !full) continue;
 
     const signature = await sign(env.DB, task.id);
-    const message = reminderEmail({
-      kind,
-      name: task.name,
-      chore: task.chore,
-      due: task.due,
-      doneUrl: `${origin}/done?t=${encodeURIComponent(task.id)}&s=${signature}`,
-      appUrl: `${origin}/`,
-    });
+    const doneUrl = `${origin}/done?t=${encodeURIComponent(task.id)}&s=${signature}`;
+    const whatsapp = task.channel !== "email" && task.phone && task.wa_key;
+    let delivered = false;
+    let whatsappSent = false;
 
-    try {
-      await env.EMAIL.send({
-        to: task.email,
-        from: { email: env.MAIL_FROM, name: "WG chores" },
-        subject: message.subject,
-        html: message.html,
-        text: message.text,
-      });
-    } catch (error) {
-      console.error(`Email for ${task.id} to ${task.email} failed`, error);
-      continue;
+    if (whatsapp) {
+      try {
+        await sendWhatsApp(task.phone!, task.wa_key!, reminderText({ kind, chore: task.chore, due: task.due, doneUrl }));
+        delivered = whatsappSent = true;
+      } catch (error) {
+        console.error(`WhatsApp for ${task.id} failed`, error);
+      }
     }
+
+    // Email unless the person chose WhatsApp only and it went through.
+    if (task.channel !== "whatsapp" || !whatsappSent) {
+      const message = reminderEmail({
+        kind,
+        name: task.name,
+        chore: task.chore,
+        due: task.due,
+        doneUrl,
+        appUrl: `${origin}/`,
+      });
+      try {
+        await env.EMAIL.send({
+          to: task.email,
+          from: { email: env.MAIL_FROM, name: "WG chores" },
+          subject: message.subject,
+          html: message.html,
+          text: message.text,
+        });
+        delivered = true;
+      } catch (error) {
+        console.error(`Email for ${task.id} to ${task.email} failed`, error);
+      }
+    }
+
+    // Nothing got through: try again on the next run.
+    if (!delivered) continue;
 
     const column =
       kind === "assigned" ? "notified_on" : kind === "due" ? "due_notified_on" : "last_reminder_on";
@@ -338,6 +369,13 @@ async function state(env: Env, me: Member | null) {
   await ensureTasks(env, today);
   const members = await listMembers(db);
   const names = await allNames(db);
+  // Only the signed-in person sees their own phone; the key never leaves the server.
+  const notify = me
+    ? await db
+        .prepare("SELECT channel, phone, wa_key FROM members WHERE id = ?")
+        .bind(me.id)
+        .first<{ channel: string; phone: string | null; wa_key: string | null }>()
+    : null;
   const anchor = await getSetting(db, "anchor");
 
   const { results: current } = await db
@@ -373,7 +411,12 @@ async function state(env: Env, me: Member | null) {
     address: env.ADDRESS ?? "",
     started: Boolean(anchor),
     maxMembers: Number(env.MAX_MEMBERS) || 3,
-    me,
+    me: me && {
+      ...me,
+      channel: notify?.channel ?? "email",
+      phone: notify?.phone ?? null,
+      whatsapp: Boolean(notify?.phone && notify?.wa_key),
+    },
     members: members.map(({ id, name, email }) => ({
       id,
       name,
@@ -454,6 +497,35 @@ async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Pro
 
   const me = (await memberByEmail(db, body.email)) ?? (await sessionMember(request, db));
   if (!me) return json({ error: "Sign in required." }, 401);
+
+  // Reminder channel: email, WhatsApp or both. Saving WhatsApp sends a test
+  // message first, so a wrong number or key is caught right away.
+  if (path === "/api/notifications") {
+    const channel = body.channel;
+    if (channel !== "email" && channel !== "whatsapp" && channel !== "both") {
+      return json({ error: "Invalid channel." }, 400);
+    }
+    if (channel === "email") {
+      await db.prepare("UPDATE members SET channel = 'email' WHERE id = ?").bind(me.id).run();
+      return json(await state(env, me));
+    }
+    const phone = normalisePhone(body.phone);
+    if (!phone) return json({ error: "Invalid phone number. Use the international format, e.g. +49 151 2345678." }, 400);
+    const saved = await db.prepare("SELECT phone, wa_key FROM members WHERE id = ?").bind(me.id).first<{ phone: string | null; wa_key: string | null }>();
+    // An empty key field keeps the saved key, as long as the number is unchanged.
+    const apikey = normaliseKey(body.apikey) ?? (saved?.phone === phone ? saved?.wa_key : null);
+    if (!apikey) return json({ error: "Invalid API key." }, 400);
+    try {
+      await sendWhatsApp(phone, apikey, "*WG Chores*\nWhatsApp reminders are on.");
+    } catch (error) {
+      return json({ error: `WhatsApp test failed: ${(error as Error).message}` }, 400);
+    }
+    await db
+      .prepare("UPDATE members SET channel = ?, phone = ?, wa_key = ? WHERE id = ?")
+      .bind(channel, phone, apikey, me.id)
+      .run();
+    return json(await state(env, me));
+  }
 
   const taskAction = path.match(/^\/api\/tasks\/([^/]+)\/(done|undo)$/);
   if (taskAction) {

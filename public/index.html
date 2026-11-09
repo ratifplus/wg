@@ -35,7 +35,7 @@
           <li><span class="rule-icon" data-icon="trash"></span><div><strong>Trash</strong><span>Weekly · 1 person · due Friday</span></div></li>
           <li><span class="rule-icon" data-icon="kitchen"></span><div><strong>Cleaning</strong><span>Every 2 weeks · kitchen, bathroom &amp; toilet, floors · rotating · due Friday</span></div></li>
           <li><span class="rule-icon" data-icon="fridges"></span><div><strong>Fridges</strong><span>Monthly · 1 person · both fridges · due last Friday</span></div></li>
-          <li><span class="rule-icon" data-icon="mail"></span><div><strong>Email</strong><span>Sent when a job is assigned and on the due date</span></div></li>
+          <li><span class="rule-icon" data-icon="mail"></span><div><strong>Email or WhatsApp</strong><span>Sent when a job is assigned and on the due date</span></div></li>
           <li><span class="rule-icon" data-icon="clock"></span><div><strong>Overdue</strong><span>Catch up on the weekend. Reminder every 2 days until marked done</span></div></li>
           <li><span class="rule-icon" data-icon="eye"></span><div><strong>Visible</strong><span>All members see all progress</span></div></li>
         </ol>
@@ -92,6 +92,31 @@
         <section id="upcoming-wrap" hidden>
           <h2>Next</h2>
           <ul id="upcoming" class="next"></ul>
+        </section>
+
+        <section>
+          <h2>Reminders</h2>
+          <form id="notify-form" class="card notify">
+            <div class="segmented" role="radiogroup" aria-label="Reminder channel">
+              <label><input type="radio" name="channel" value="email" /><span>Email</span></label>
+              <label><input type="radio" name="channel" value="whatsapp" /><span>WhatsApp</span></label>
+              <label><input type="radio" name="channel" value="both" /><span>Both</span></label>
+            </div>
+            <div id="wa-fields" hidden>
+              <ol class="steps">
+                <li>Activate CallMeBot from your WhatsApp: <a href="https://www.callmebot.com/blog/free-api-whatsapp-messages/" target="_blank" rel="noopener">steps</a></li>
+                <li>Enter your number and the API key you receive</li>
+              </ol>
+              <label for="wa-phone">WhatsApp number</label>
+              <input id="wa-phone" type="tel" autocomplete="tel" />
+              <p class="hint">International format, with +49</p>
+              <label for="wa-key">API key</label>
+              <input id="wa-key" type="text" autocomplete="off" />
+            </div>
+            <p id="notify-status" class="hint"></p>
+            <p id="notify-error" class="error" role="alert" hidden></p>
+            <button class="button small" type="submit">Save</button>
+          </form>
         </section>
 
         <section>
