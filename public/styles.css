@@ -198,6 +198,30 @@ ul { list-style: none; padding: 0; margin: 0; }
 .empty { text-align: center; padding: 20px; color: var(--muted); }
 .empty .illo { margin-bottom: 6px; }
 
+/* Bottom menu */
+#app { padding-bottom: calc(88px + env(safe-area-inset-bottom)); }
+.panel { animation: rise .25s ease both; }
+.tabbar {
+  position: fixed; left: 0; right: 0; bottom: 0; z-index: 5;
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  max-width: 600px; margin: 0 auto;
+  padding: 6px 8px calc(6px + env(safe-area-inset-bottom));
+  background: color-mix(in srgb, var(--surface) 92%, transparent);
+  backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px);
+  border-top: 1px solid var(--line);
+}
+@media (min-width: 600px) { .tabbar { bottom: 12px; border: 1px solid var(--line); border-radius: 20px; box-shadow: var(--shadow); } }
+.tabbar button {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  padding: 8px 4px; min-height: 56px; border: 0; border-radius: 14px; background: none;
+  color: var(--muted); font: inherit; font-size: 12px; font-weight: 700; cursor: pointer;
+}
+.tabbar button svg { width: 24px; height: 24px; }
+.tabbar button[aria-current="page"] { color: var(--blue); background: var(--blue-50); }
+.settings-actions { display: grid; gap: 10px; margin-top: 32px; }
+.settings-actions .button { width: 100%; }
+.settings-actions svg { width: 20px; height: 20px; }
+
 /* Reminder settings */
 .notify .segmented { display: grid; grid-template-columns: repeat(3, 1fr); gap: 4px; padding: 4px; background: var(--bg); border: 1px solid var(--line); border-radius: 14px; }
 .segmented label { margin: 0; font-size: 15px; font-weight: 600; cursor: pointer; }

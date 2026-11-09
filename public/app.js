@@ -83,14 +83,38 @@ async function api(path, body) {
 
 /* ---------- screens ---------- */
 
-function show(screen) {
-  $("rules").hidden = screen !== "rules";
-  $("join").hidden = screen !== "join";
-  $("app").hidden = screen !== "app";
-  $("switch").hidden = screen !== "app";
-  $("rules-open").hidden = screen === "rules";
-  window.scrollTo({ top: 0 });
+let screen = null;
+
+function show(next) {
+  $("rules").hidden = next !== "rules";
+  $("join").hidden = next !== "join";
+  $("app").hidden = next !== "app";
+  $("tabbar").hidden = next !== "app";
+  // Only jump to the top when the screen changes, not on a background refresh.
+  if (next !== screen) window.scrollTo({ top: 0 });
+  screen = next;
 }
+
+/* ---------- bottom menu ---------- */
+
+const TAB_KEY = "wg-tab";
+
+function showTab(tab) {
+  if (!document.querySelector(`[data-panel="${tab}"]`)) tab = "home";
+  for (const panel of document.querySelectorAll("[data-panel]")) panel.hidden = panel.dataset.panel !== tab;
+  for (const button of document.querySelectorAll("[data-tab]")) {
+    if (button.dataset.tab === tab) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  }
+  store(TAB_KEY, tab);
+}
+
+$("tabbar").addEventListener("click", (event) => {
+  const button = event.target.closest("[data-tab]");
+  if (!button) return;
+  showTab(button.dataset.tab);
+  window.scrollTo({ top: 0 });
+});
 
 function showJoin(message) {
   show("join");
@@ -140,8 +164,7 @@ function taskItem(task) {
 function render(justDone) {
   show("app");
   const me = data.me;
-  $("switch").innerHTML = `${avatar(me.name, me.id)}${esc(firstName())}`;
-  $("switch").title = "Sign out";
+  $("switch").innerHTML = `${avatar(me.name, me.id)} Sign out`;
 
   const mine = data.tasks.filter((t) => t.memberId === me.id);
   const others = data.tasks.filter((t) => t.memberId !== me.id);
@@ -183,8 +206,9 @@ function render(justDone) {
     ? mine.map(taskItem).join("")
     : `<li class="card empty">${ALL_CLEAR}No open jobs</li>`;
 
-  $("others-wrap").hidden = others.length === 0;
-  $("others").innerHTML = others.map(taskItem).join("");
+  $("others").innerHTML = others.length
+    ? others.map(taskItem).join("")
+    : `<li class="card empty">No jobs yet</li>`;
 
   $("upcoming-wrap").hidden = data.upcoming.length === 0;
   $("upcoming").innerHTML = data.upcoming
@@ -206,12 +230,13 @@ function render(justDone) {
 
   renderNotify();
 
-  $("history-wrap").hidden = data.history.length === 0;
-  $("history").innerHTML = data.history
-    .map(
-      (t) => `<li>${avatar(t.memberName, t.memberId)}<span class="what"><strong>${esc(t.memberName)}</strong> · ${esc(t.title)}</span><span class="when">${fmt(t.due)}</span></li>`,
-    )
-    .join("");
+  $("history").innerHTML = data.history.length
+    ? data.history
+        .map(
+          (t) => `<li>${avatar(t.memberName, t.memberId)}<span class="what"><strong>${esc(t.memberName)}</strong> · ${esc(t.title)}</span><span class="when">${fmt(t.due)}</span></li>`,
+        )
+        .join("")
+    : `<li class="empty">No finished jobs yet</li>`;
 
   if (justDone) {
     const card = document.querySelector(`[data-task="${CSS.escape(justDone)}"]`);
@@ -360,6 +385,7 @@ document.addEventListener("click", async (event) => {
 /* ---------- start ---------- */
 
 for (const el of document.querySelectorAll("[data-icon]")) el.innerHTML = ICONS[el.dataset.icon];
+showTab(load(TAB_KEY) ?? "home");
 $("house").innerHTML = HOUSE;
 
 const firstVisit = !load(RULES_KEY);

@@ -18,10 +18,6 @@
           <img src="/icon.svg" alt="" width="32" height="32" />
           <span>WG Chores</span>
         </div>
-        <div class="top-actions">
-          <button id="rules-open" class="chip" type="button" hidden><span data-icon="list"></span>Rules</button>
-          <button id="switch" class="chip" type="button" hidden></button>
-        </div>
       </header>
 
       <!-- Shown on the very first visit, and again from the Rules button. -->
@@ -56,6 +52,8 @@
       </section>
 
       <div id="app" hidden>
+        <!-- Home: your status and your jobs. -->
+        <div class="panel" data-panel="home">
         <section class="hello">
           <p id="greeting" class="eyebrow"></p>
           <h1 id="headline"></h1>
@@ -84,7 +82,11 @@
           <ul id="mine" class="tasks"></ul>
         </section>
 
-        <section id="others-wrap" hidden>
+        </div>
+
+        <!-- Jobs: everyone else's current jobs and what comes next. -->
+        <div class="panel" data-panel="jobs" hidden>
+        <section id="others-wrap">
           <h2>Others</h2>
           <ul id="others" class="tasks"></ul>
         </section>
@@ -94,6 +96,10 @@
           <ul id="upcoming" class="next"></ul>
         </section>
 
+        </div>
+
+        <!-- You: reminders, members, rules, sign out. -->
+        <div class="panel" data-panel="you" hidden>
         <section>
           <h2>Reminders</h2>
           <form id="notify-form" class="card notify">
@@ -128,12 +134,28 @@
           <ul id="members" class="crew"></ul>
         </section>
 
-        <section id="history-wrap" hidden>
+        <section class="row settings-actions">
+          <button id="rules-open" class="button ghost" type="button"><span data-icon="list"></span>House rules</button>
+          <button id="switch" class="button ghost" type="button"></button>
+        </section>
+        </div>
+
+        <!-- History: finished jobs. -->
+        <div class="panel" data-panel="history" hidden>
+        <section id="history-wrap">
           <h2>History</h2>
           <ul id="history" class="history"></ul>
         </section>
+        </div>
       </div>
     </main>
+
+    <nav id="tabbar" class="tabbar" aria-label="Menu" hidden>
+      <button type="button" data-tab="home"><span data-icon="home"></span>Home</button>
+      <button type="button" data-tab="jobs"><span data-icon="list"></span>Jobs</button>
+      <button type="button" data-tab="history"><span data-icon="clock"></span>History</button>
+      <button type="button" data-tab="you"><span data-icon="user"></span>You</button>
+    </nav>
     <script src="/app.js" type="module"></script>
   </body>
 </html>
