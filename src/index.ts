@@ -564,7 +564,7 @@ const ALL_CLEAR = `<svg viewBox="0 0 160 120" width="160" height="120" aria-hidd
 
 function page(title: string, body: string, status = 200): Response {
   return new Response(
-    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+    `<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><meta name="color-scheme" content="only light">
 <title>${escapeHtml(title)}</title><link rel="icon" href="/icon.svg" type="image/svg+xml">
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&display=swap">
 <link rel="stylesheet" href="/styles.css"></head>
