@@ -47,17 +47,16 @@ function daysUntil(date) {
 
 function dueText(task) {
   if (task.doneAt) {
-    return `done ${new Date(task.doneAt).toLocaleDateString("en-GB", { day: "numeric", month: "short" })}`;
+    return `done ${new Date(task.doneAt).toLocaleDateString("en-GB", { weekday: "short", day: "numeric", month: "short" })}`;
   }
+  // Always show the date next to relative wording.
+  const date = fmt(task.due);
   const d = daysUntil(task.due);
-  if (d < -1) return `${-d} days late`;
-  if (d === -1) return "1 day late";
-  if (d === 0) return "due today";
-  if (d === 1) return "due tomorrow";
-  if (d < 7) {
-    return `due ${new Date(`${task.due}T00:00:00Z`).toLocaleDateString("en-GB", { weekday: "long", timeZone: "UTC" })}`;
-  }
-  return `due ${fmt(task.due)}`;
+  if (d < -1) return `${-d} days late · due ${date}`;
+  if (d === -1) return `1 day late · due ${date}`;
+  if (d === 0) return `due today · ${date}`;
+  if (d === 1) return `due tomorrow · ${date}`;
+  return `due ${date}`;
 }
 
 function avatar(name, id, size = "") {
@@ -192,7 +191,7 @@ function render(justDone) {
     .map(
       (u) => `<li><div class="ico">${ICONS[u.chore]}</div><div class="title">${esc(u.title)}</div>
       <div class="who">${avatar(u.memberName, data.members.find((m) => m.name === u.memberName)?.id ?? 0)} ${esc(u.memberName === me.name ? "You" : u.memberName)}</div>
-      <div class="when">${fmt(u.start)}</div></li>`,
+      <div class="when">due ${fmt(u.due)}</div></li>`,
     )
     .join("");
 

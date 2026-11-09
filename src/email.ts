@@ -34,10 +34,14 @@ export function reminderEmail({ kind, name, chore, due, doneUrl, appUrl }: Remin
     kind === "assigned"
       ? `Assigned: ${title}, due ${dueText}`
       : kind === "due"
-        ? `Due today: ${title}`
-        : `Overdue: ${title}`;
+        ? `Due today: ${title}, ${dueText}`
+        : `Overdue: ${title}, due ${dueText}`;
   const status =
-    kind === "assigned" ? `Due ${dueText}` : kind === "due" ? "Due today" : `Overdue since ${dueText}`;
+    kind === "assigned"
+      ? `Due ${dueText}`
+      : kind === "due"
+        ? `Due today, ${dueText}`
+        : `Overdue since ${dueText}`;
   const note = kind === "overdue" ? "Reminder every 2 days until marked done." : "";
 
   const html = `<!doctype html>
