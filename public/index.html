@@ -103,15 +103,19 @@
               <label><input type="radio" name="channel" value="both" /><span>Both</span></label>
             </div>
             <div id="wa-fields" hidden>
+              <!-- CallMeBot activation: +34 644 91 07 79 replies with a personal key. -->
               <ol class="steps">
-                <li>Activate CallMeBot from your WhatsApp: <a href="https://www.callmebot.com/blog/free-api-whatsapp-messages/" target="_blank" rel="noopener">steps</a></li>
-                <li>Enter your number and the API key you receive</li>
+                <li>Tap the button. WhatsApp opens with a message ready. Tap <strong>Send</strong>.</li>
+                <li>Wait for the reply. It ends with <strong>“Your APIKEY is”</strong> and a number.</li>
+                <li>Type that number into <strong>Key</strong> below, add your WhatsApp number, and tap <strong>Save</strong>.</li>
               </ol>
-              <label for="wa-phone">WhatsApp number</label>
+              <a class="button ghost wa-open" href="https://wa.me/34644910779?text=I%20allow%20callmebot%20to%20send%20me%20messages" target="_blank" rel="noopener">Open WhatsApp</a>
+              <p class="hint">No reply after 2 minutes? Try again tomorrow.</p>
+              <label for="wa-phone">Your WhatsApp number</label>
               <input id="wa-phone" type="tel" autocomplete="tel" />
-              <p class="hint">International format, with +49</p>
-              <label for="wa-key">API key</label>
-              <input id="wa-key" type="text" autocomplete="off" />
+              <p class="hint">Start with +49</p>
+              <label for="wa-key">Key</label>
+              <input id="wa-key" type="text" inputmode="numeric" autocomplete="off" />
             </div>
             <p id="notify-status" class="hint"></p>
             <p id="notify-error" class="error" role="alert" hidden></p>

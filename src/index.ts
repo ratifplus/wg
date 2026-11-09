@@ -510,15 +510,15 @@ async function handleApi(request: Request, env: Env, ctx: ExecutionContext): Pro
       return json(await state(env, me));
     }
     const phone = normalisePhone(body.phone);
-    if (!phone) return json({ error: "Invalid phone number. Use the international format, e.g. +49 151 2345678." }, 400);
+    if (!phone) return json({ error: "Check your WhatsApp number. Start with +49." }, 400);
     const saved = await db.prepare("SELECT phone, wa_key FROM members WHERE id = ?").bind(me.id).first<{ phone: string | null; wa_key: string | null }>();
     // An empty key field keeps the saved key, as long as the number is unchanged.
     const apikey = normaliseKey(body.apikey) ?? (saved?.phone === phone ? saved?.wa_key : null);
-    if (!apikey) return json({ error: "Invalid API key." }, 400);
+    if (!apikey) return json({ error: "Enter the key from the WhatsApp reply." }, 400);
     try {
       await sendWhatsApp(phone, apikey, "*WG Chores*\nWhatsApp reminders are on.");
     } catch (error) {
-      return json({ error: `WhatsApp test failed: ${(error as Error).message}` }, 400);
+      return json({ error: `Test message failed. Check your number and key. (${(error as Error).message})` }, 400);
     }
     await db
       .prepare("UPDATE members SET channel = ?, phone = ?, wa_key = ? WHERE id = ?")
